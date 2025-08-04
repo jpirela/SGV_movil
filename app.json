@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Agropecuaria Los Apamates",
+    "slug": "snack-6ed096ec-79f6-4300-898d-185768ccbf9e",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.jorgepirelarivas.snack6ed096ec79f64300898d185768ccbf9e"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "description": "Aplicación para la recolección de datos",
+    "extra": {
+      "eas": {
+        "projectId": "6ee94bc9-8491-427d-a049-59410a1b5452"
+      }
+    }
+  }
+}
