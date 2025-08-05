@@ -65,20 +65,33 @@ export default function AgregarCliente() {
 
     // Transformar datos al formato esperado
     const transformarDatos = (huevosData) => {
-      const categorias = Object.entries(huevosData.categorias || {}).map(([key, value]) => {
-        const id = parseInt(key.replace('cat_', ''), 10);
-        return { idCategoria: id, cantidad: value };
-      });
+      // Categorías: convertir cantidades a número y filtrar las vacías
+      const categorias = Object.entries(huevosData.categorias || {})
+        .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        .map(([key, value]) => {
+          const id = parseInt(key.replace('cat_', ''), 10);
+          const cantidad = isNaN(parseInt(value, 10)) ? value : parseInt(value, 10);
+          return { idCategoria: id, cantidad };
+        });
 
-      const preguntas = Object.entries(huevosData.preguntas || {}).map(([key, value]) => {
-        return { idPregunta: parseInt(key, 10), respuesta: value };
-      });
+      // Preguntas: convertir respuestas numéricas a número y filtrar las vacías
+      const preguntas = Object.entries(huevosData.preguntas || {})
+        .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+        .map(([key, value]) => {
+          const idPregunta = parseInt(key, 10);
+          // Si el valor es numérico, convertirlo a número, sino mantenerlo como string
+          const respuesta = !isNaN(value) && !isNaN(parseFloat(value)) && isFinite(value) 
+            ? parseFloat(value) 
+            : value;
+          return { idPregunta, respuesta };
+        });
 
+      // Forma de pago: incluir todas las formas con sus respuestas (1=Sí, 2=No)
       const formaPago = Object.entries(huevosData.formaPago || {})
-        .filter(([_, value]) => value === '1')
-        .map(([key]) => {
+        .map(([key, value]) => {
           const id = parseInt(key.replace('forma_', ''), 10);
-          return { idFormaPago: id };
+          const respuesta = value === '1' ? 1 : 2;
+          return { idFormaPago: id, respuesta };
         });
 
       const condicionIdStr = huevosData.condicionPago?.['condicion_pago_select'];
