@@ -133,6 +133,42 @@ export const syncTodosLosModelosFS = async () => {
         }
       }
     }
+
+    // Mostrar ubicación y contenido de archivos JSON después de la sincronización
+    console.log('\n📂 ===== UBICACIÓN Y CONTENIDO DE ARCHIVOS JSON =====');
+    
+    // Mostrar clientes.json
+    const clientesPath = MODELOS['clientes'];
+    if (clientesPath) {
+      console.log(`📁 Ubicación de clientes.json: ${clientesPath}`);
+      try {
+        const clientesInfo = await FileSystem.getInfoAsync(clientesPath);
+        if (clientesInfo.exists) {
+          const clientesContenido = await FileSystem.readAsStringAsync(clientesPath);
+          console.log(`📝 Contenido de clientes.json:\n${clientesContenido}`);
+        } else {
+          console.log('⚠️ clientes.json no existe aún');
+        }
+      } catch (error) {
+        console.warn(`❌ Error al leer clientes.json: ${error.message}`);
+      }
+    }
+    
+    // Mostrar respuestas.json
+    console.log(`📁 Ubicación de respuestas.json: ${RESPUESTAS_PATH}`);
+    try {
+      const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
+      if (respuestasInfo.exists) {
+        const respuestasContenido = await FileSystem.readAsStringAsync(RESPUESTAS_PATH);
+        console.log(`📝 Contenido de respuestas.json:\n${respuestasContenido}`);
+      } else {
+        console.log('⚠️ respuestas.json no existe aún');
+      }
+    } catch (error) {
+      console.warn(`❌ Error al leer respuestas.json: ${error.message}`);
+    }
+    
+    console.log('📂 ===== FIN DE INFORMACIÓN DE ARCHIVOS JSON =====\n');
   } catch (error) {
     console.warn('❌ Error al sincronizar modelos:', error.message);
   }
@@ -208,6 +244,7 @@ export const guardarNuevoCliente = async (clienteData) => {
     const nuevoCliente = {
       idCliente: nuevoIdCliente.toString(),
       fechaCreacion: new Date().toISOString(),
+      fechaSincronizacion: "",
       ...clienteData
     };
     
