@@ -19,7 +19,7 @@ const generateUUID = () => {
 };
 
 const icons = {
-  editar: <MaterialCommunityIcons name="account-edit-outline" size={24} color="gray" />,
+  verDatos: <MaterialCommunityIcons name="eye-outline" size={24} color="gray" />,
   eliminar: <MaterialCommunityIcons name="account-remove-outline" size={24} color="gray" />,
 };
 
@@ -130,7 +130,7 @@ const Inicio = () => {
               <Text style={[styles.cell, { flex: 1 }]}>{cliente.nombre}</Text>
               <View style={[styles.actionsCell, { width: '25%' }]}>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => handleEditar(cliente.idCliente)}>
-                  {icons.editar}
+                  {icons.verDatos}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => handleEliminar(cliente.idCliente)}>
                   {icons.eliminar}

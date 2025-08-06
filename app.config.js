@@ -9,6 +9,8 @@ export default {
       MODELOS: [
         'clientes',
         'estados',
+        'municipios',
+        'parroquias',
         'ciudades',
         'categorias',
         'preguntas',

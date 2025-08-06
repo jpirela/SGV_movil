@@ -134,8 +134,8 @@ export const syncTodosLosModelosFS = async () => {
       }
     }
 
-    // Mostrar ubicación y contenido de archivos JSON después de la sincronización
-    console.log('\n📂 ===== UBICACIÓN Y CONTENIDO DE ARCHIVOS JSON =====');
+    // Mostrar ubicación de archivos JSON después de la sincronización
+    console.log('\n📂 ===== UBICACIÓN DE ARCHIVOS JSON =====');
     
     // Mostrar clientes.json
     const clientesPath = MODELOS['clientes'];
@@ -144,13 +144,12 @@ export const syncTodosLosModelosFS = async () => {
       try {
         const clientesInfo = await FileSystem.getInfoAsync(clientesPath);
         if (clientesInfo.exists) {
-          const clientesContenido = await FileSystem.readAsStringAsync(clientesPath);
-          console.log(`📝 Contenido de clientes.json:\n${clientesContenido}`);
+          console.log('✅ clientes.json existe');
         } else {
           console.log('⚠️ clientes.json no existe aún');
         }
       } catch (error) {
-        console.warn(`❌ Error al leer clientes.json: ${error.message}`);
+        console.warn(`❌ Error al verificar clientes.json: ${error.message}`);
       }
     }
     
@@ -159,16 +158,15 @@ export const syncTodosLosModelosFS = async () => {
     try {
       const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
       if (respuestasInfo.exists) {
-        const respuestasContenido = await FileSystem.readAsStringAsync(RESPUESTAS_PATH);
-        console.log(`📝 Contenido de respuestas.json:\n${respuestasContenido}`);
+        console.log('✅ respuestas.json existe');
       } else {
         console.log('⚠️ respuestas.json no existe aún');
       }
     } catch (error) {
-      console.warn(`❌ Error al leer respuestas.json: ${error.message}`);
+      console.warn(`❌ Error al verificar respuestas.json: ${error.message}`);
     }
     
-    console.log('📂 ===== FIN DE INFORMACIÓN DE ARCHIVOS JSON =====\n');
+    console.log('📂 ===== FIN DE UBICACIÓN DE ARCHIVOS =====\n');
   } catch (error) {
     console.warn('❌ Error al sincronizar modelos:', error.message);
   }
