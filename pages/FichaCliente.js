@@ -5,8 +5,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   View,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 
 import InputText from '../components/Input/InputText';
 import TextArea from '../components/Input/TextArea';
@@ -178,6 +182,74 @@ const Cliente = forwardRef((props, ref) => {
     updateFormValue('parroquia', idParroquia);
   };
 
+  const getCurrentLocationUrl = async () => {
+    try {
+      // Solicitar permisos de ubicación
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        // Si no se otorgan permisos, usar la función anterior como fallback
+        autoGenerateGoogleMapsUrlFromData();
+        return;
+      }
+
+      // Obtener la ubicación actual
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const { latitude, longitude } = location.coords;
+      
+      // Crear URL de Google Maps con las coordenadas
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      
+      // Actualizar el campo ubicacionMap
+      updateFormValue('ubicacionMap', googleMapsUrl);
+      
+    } catch (error) {
+      console.log('Error obteniendo ubicación:', error);
+      // En caso de error, usar la función de fallback
+      autoGenerateGoogleMapsUrlFromData();
+    }
+  };
+
+  const autoGenerateGoogleMapsUrlFromData = () => {
+    const { nombre, direccion, local, puntoReferencia } = object;
+    
+    // Construir la dirección de búsqueda
+    let searchQuery = '';
+    
+    if (nombre) {
+      searchQuery += nombre;
+    }
+    
+    if (direccion) {
+      if (searchQuery) searchQuery += ', ';
+      searchQuery += direccion;
+    }
+    
+    if (local) {
+      if (searchQuery) searchQuery += ', ';
+      searchQuery += local;
+    }
+    
+    if (puntoReferencia) {
+      if (searchQuery) searchQuery += ', ';
+      searchQuery += puntoReferencia;
+    }
+    
+    // Si no hay información suficiente, usar un placeholder
+    if (!searchQuery.trim()) {
+      searchQuery = 'Mi ubicación';
+    }
+    
+    // Codificar la URL
+    const encodedQuery = encodeURIComponent(searchQuery);
+    const googleMapsUrl = `https://www.google.com/maps/search/${encodedQuery}`;
+    
+    // Actualizar el campo ubicacionMap
+    updateFormValue('ubicacionMap', googleMapsUrl);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -293,7 +365,25 @@ const Cliente = forwardRef((props, ref) => {
           />
           {/* Otros inputs sin foco */}
           <InputText id="local" value={object.local} placeholder="Local" onChange={updateFormValue} />
-          <InputText id="ubicacionMap" value={object.ubicacionMap} placeholder="URL Google Maps" onChange={updateFormValue} />
+          
+          {/* Contenedor para URL Google Maps con botón */}
+          <View style={styles.inputWithButtonContainer}>
+            <View style={styles.inputContainer}>
+              <InputText 
+                id="ubicacionMap" 
+                value={object.ubicacionMap} 
+                placeholder="URL Google Maps" 
+                onChange={updateFormValue} 
+              />
+            </View>
+            <TouchableOpacity 
+              style={styles.mapButton} 
+              onPress={getCurrentLocationUrl}
+            >
+              <MaterialCommunityIcons name="map-marker-outline" size={24} color="black" />
+            </TouchableOpacity>
+          </View>
+          
           <InputText id="puntoReferencia" value={object.puntoReferencia} placeholder="Punto de referencia" onChange={updateFormValue} />
           <SelectBox
             id="diaRecepcion"
@@ -397,6 +487,25 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     fontSize: 16,
+  },
+  inputWithButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 15,
+  },
+  inputContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  mapButton: {
+    backgroundColor: '#e9ecef',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 44,
+    height: 44,
   },
 });
 
