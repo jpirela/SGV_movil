@@ -145,6 +145,13 @@ export const syncTodosLosModelosFS = async () => {
         const clientesInfo = await FileSystem.getInfoAsync(clientesPath);
         if (clientesInfo.exists) {
           console.log('✅ clientes.json existe');
+          try {
+            const contenidoClientes = await FileSystem.readAsStringAsync(clientesPath);
+            const mostradoClientes = contenidoClientes.length > 20000 ? contenidoClientes.slice(0, 20000) + "\n…(contenido truncado)" : contenidoClientes;
+            console.log('🧾 Contenido de clientes.json:\n' + mostradoClientes);
+          } catch (leerErr) {
+            console.warn(`❌ Error al leer clientes.json: ${leerErr.message}`);
+          }
         } else {
           console.log('⚠️ clientes.json no existe aún');
         }
@@ -159,6 +166,13 @@ export const syncTodosLosModelosFS = async () => {
       const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
       if (respuestasInfo.exists) {
         console.log('✅ respuestas.json existe');
+        try {
+          const contenidoRespuestas = await FileSystem.readAsStringAsync(RESPUESTAS_PATH);
+          const mostradoRespuestas = contenidoRespuestas.length > 20000 ? contenidoRespuestas.slice(0, 20000) + "\n…(contenido truncado)" : contenidoRespuestas;
+          console.log('🧾 Contenido de respuestas.json:\n' + mostradoRespuestas);
+        } catch (leerErr) {
+          console.warn(`❌ Error al leer respuestas.json: ${leerErr.message}`);
+        }
       } else {
         console.log('⚠️ respuestas.json no existe aún');
       }

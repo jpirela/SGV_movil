@@ -58,9 +58,32 @@ export default function AgregarCliente() {
     console.log('\n🥚 DATOS DE HUEVOS:');
     console.log(JSON.stringify(huevosData, null, 2));
 
+    // Transformar cliente para guardar ubicaciones como objetos con IDs
+    const transformarClienteUbicacion = (data) => {
+      const parseNum = (v) => {
+        if (v === null || v === undefined || v === '') return undefined;
+        const n = parseInt(v, 10);
+        return isNaN(n) ? undefined : n;
+      };
+      const idEstado = parseNum(data.estado);
+      const idMunicipio = parseNum(data.municipio);
+      const idParroquia = parseNum(data.parroquia);
+      const idCiudad = parseNum(data.ciudad);
+
+      return {
+        ...data,
+        ...(idEstado !== undefined ? { estado: { idEstado } } : {}),
+        ...(idMunicipio !== undefined ? { municipio: { idMunicipio } } : {}),
+        ...(idParroquia !== undefined ? { parroquia: { idParroquia } } : {}),
+        ...(idCiudad !== undefined ? { ciudad: { idCiudad } } : {}),
+      };
+    };
+
+    const clienteDataTransformado = transformarClienteUbicacion(clienteData);
+
     // Guardar cliente y obtener idCliente
     console.log('\n💾 Guardando cliente...');
-    const idCliente = await guardarNuevoCliente(clienteData);
+    const idCliente = await guardarNuevoCliente(clienteDataTransformado);
     console.log('✅ Cliente guardado con ID:', idCliente);
 
     // Transformar datos al formato esperado

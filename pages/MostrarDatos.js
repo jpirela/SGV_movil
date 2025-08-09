@@ -135,13 +135,29 @@ export default function MostrarDatos() {
   const renderClienteData = () => {
     if (!clienteData) return null;
 
-    // Función auxiliar para obtener nombres geográficos
-    const obtenerNombreGeografico = (id, tipo) => {
-      if (!id) return '';
-      
+    // Función auxiliar para obtener nombres geográficos a partir de objetos o IDs
+    const obtenerNombreGeografico = (valor, tipo) => {
+      if (valor === undefined || valor === null || valor === '') return '';
+
+      // Extraer ID según el tipo y el formato del valor almacenado
+      const extraerId = (v) => {
+        if (typeof v === 'object') {
+          // Valor en nuevo formato { idEstado: n }, { idMunicipio: n }, etc.
+          if (tipo === 'estado') return v.idEstado ?? v.id_estado ?? v.id;
+          if (tipo === 'municipio') return v.idMunicipio ?? v.id_municipio ?? v.id;
+          if (tipo === 'parroquia') return v.idParroquia ?? v.id_parroquia ?? v.id;
+          if (tipo === 'ciudad') return v.idCiudad ?? v.id_ciudad ?? v.id;
+        }
+        // Formatos antiguos: número o string con el id
+        return v;
+      };
+
+      const id = extraerId(valor);
+      if (id === undefined || id === null || id === '') return '';
+
       let datos = [];
       let campo = '';
-      
+
       switch (tipo) {
         case 'estado':
           datos = estadosModelo;
@@ -162,8 +178,9 @@ export default function MostrarDatos() {
         default:
           return String(id);
       }
-      
-      const item = datos.find(d => d[campo] === parseInt(id) || String(d[campo]) === String(id));
+
+      const idNum = parseInt(id);
+      const item = datos.find(d => d[campo] === idNum || String(d[campo]) === String(id));
       return item ? item.nombre : String(id);
     };
 

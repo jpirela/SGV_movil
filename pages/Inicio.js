@@ -127,7 +127,7 @@ const Inicio = () => {
               onPress={() => setSelectedRowId(cliente.idCliente)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.cell, { flex: 1 }]}>{cliente.nombre}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>{cliente.fechaSincronizacion === '' || cliente.fechaSincronizacion === null || cliente.fechaSincronizacion === undefined ? '🌐' : '⚠️'} {cliente.nombre}</Text>
               <View style={[styles.actionsCell, { width: '25%' }]}>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => handleEditar(cliente.idCliente)}>
                   {icons.verDatos}

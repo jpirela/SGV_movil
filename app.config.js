@@ -5,9 +5,10 @@ export default {
     slug: 'sgv-ventas',
     version: '1.0.0',
     extra: {
-      URL_BASE: 'http:/192.168.1.101:8080/api',
+      URL_BASE: 'http:/192.168.1.105:8080/api',
       MODELOS: [
         'clientes',
+        'redes-sociales',
         'estados',
         'municipios',
         'parroquias',
@@ -17,7 +18,7 @@ export default {
         'formas-pago',
         'condiciones-pago'
       ],
-      RESPUESTAS: [
+      ENDPOINTS: [
         'clientes',
         'clientes-categorias',
         'respuestas',
@@ -28,6 +29,7 @@ export default {
         user: 'admin',
         password: 'admin123',
       },
+      MODE: 'development', // or 'production'
     },
   },
 };
