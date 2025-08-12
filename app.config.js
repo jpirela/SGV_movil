@@ -26,8 +26,14 @@ export default {
         'clientes-condicion-pago'
       ],
       AUTENTICACION: {
-        user: 'admin',
-        password: 'admin123',
+        user: {
+          user: 'user',
+          password: '123456'
+        },
+        admin: {
+          user: 'admin',
+          password: 'admin1234'
+        },
       },
       MODE: 'development', // or 'production'
     },

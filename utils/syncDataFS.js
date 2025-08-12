@@ -4,6 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 
 const { URL_BASE, MODELOS: MODELOS_NOMBRES, AUTENTICACION } = Constants.expoConfig.extra;
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const CONFIG_PATH = `${DATA_DIR}config.json`;
 
 // Construimos un objeto con nombre de modelo -> ruta local
 const MODELOS = {};
@@ -210,7 +211,40 @@ const normalizeBaseUrl = (raw) => {
   return base;
 };
 
-const BASE = normalizeBaseUrl(URL_BASE);
+// Persistencia de configuración (ej. URL de API definida en Login)
+const leerConfig = async () => {
+  try {
+    const info = await FileSystem.getInfoAsync(CONFIG_PATH);
+    if (!info.exists) return {};
+    const content = await FileSystem.readAsStringAsync(CONFIG_PATH);
+    return content ? JSON.parse(content) : {};
+  } catch (_) {
+    return {};
+  }
+};
+
+const escribirConfig = async (cfg) => {
+  await asegurarDataDir();
+  await FileSystem.writeAsStringAsync(CONFIG_PATH, JSON.stringify(cfg || {}, null, 2), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+};
+
+let BASE = normalizeBaseUrl(URL_BASE);
+
+export const getBaseUrl = async () => {
+  const cfg = await leerConfig();
+  return normalizeBaseUrl(cfg.urlBase || BASE);
+};
+
+export const setBaseUrl = async (url) => {
+  const norm = normalizeBaseUrl(url);
+  const cfg = await leerConfig();
+  cfg.urlBase = norm;
+  await escribirConfig(cfg);
+  BASE = norm || BASE; // actualizar en memoria para sesiones actuales
+  return BASE;
+};
 
 const defaultHeaders = () => {
   const headers = { 'Content-Type': 'application/json' };
@@ -287,7 +321,8 @@ const getModeloLocal = async (nombre) => {
 };
 
 export const syncClientesPendientesFS = async () => {
-  const debug = { inicio: new Date().toISOString(), base: BASE, clientesProcesados: [] };
+  const baseActual = await getBaseUrl();
+  const debug = { inicio: new Date().toISOString(), base: baseActual, clientesProcesados: [] };
 
   const netInfo = await NetInfo.fetch();
   if (!netInfo.isConnected) {
@@ -299,8 +334,19 @@ export const syncClientesPendientesFS = async () => {
   const clientes = await leerJSON(clientesPath, []);
   const respuestasData = await leerJSON(RESPUESTAS_PATH, {});
 
-  // Catálogo de redes sociales (para mapear nombres -> idRedSocial)
-  const redesCatalog = await getModeloLocal('redes-sociales');
+  // === DEPURACIÓN INICIAL ===
+  try {
+    console.log('\n===== DEPURACION SINCRONIZACION (INICIO) =====');
+    console.log('Base URL:', baseActual);
+    console.log(`clientes.json (N=${Array.isArray(clientes) ? clientes.length : 0}):`);
+    console.log(JSON.stringify(clientes, null, 2));
+    console.log('respuestas.json:');
+    console.log(JSON.stringify(respuestasData, null, 2));
+    console.log('===== FIN DEPURACION INICIAL =====\n');
+  } catch (_) {}
+
+  // Mapeo fijo de redes sociales a IDs solicitados por el backend
+  const REDES_ID = { facebook: 1, instagram: 2, tiktok: 3, paginaWeb: 4 };
 
   const pendientes = (Array.isArray(clientes) ? clientes : []).filter(c => (c?.fechaSincronizacion ?? '') === '');
 
@@ -309,7 +355,7 @@ export const syncClientesPendientesFS = async () => {
     try {
       // Paso 1: crear cliente
       const dataCliente = pickClienteData(cliente);
-      const urlClientes = `${BASE}/clientes`;
+      const urlClientes = `${baseActual}/clientes`;
       log.pasos.push({ paso: 'POST /clientes', url: urlClientes, body: dataCliente });
       const resCliente = await postJson(urlClientes, dataCliente, { retries: 2 });
       if (!resCliente.ok || !resCliente.data?.idCliente) {
@@ -321,31 +367,22 @@ export const syncClientesPendientesFS = async () => {
       const serverId = resCliente.data.idCliente;
       log.idServer = serverId;
 
-      // Paso 2: redes sociales
+      // Paso 2: redes sociales (mapeo directo a IDs)
       const redes = ['facebook', 'instagram', 'tiktok', 'paginaWeb']
         .map(key => ({ key, usuario: (cliente?.[key] || '').toString().trim() }))
         .filter(x => x.usuario);
+
       for (const r of redes) {
-        // Buscar idRedSocial en catálogo por nombre (asumiendo campo nombre o codigo)
-        const entry = Array.isArray(redesCatalog) ? redesCatalog.find(it => {
-          const nombre = `${it?.nombre || it?.codigo || ''}`.toLowerCase();
-          return nombre.includes(r.key.toLowerCase());
-        }) : null;
-        if (!entry?.idRedSocial) {
-          log.pasos.push({ paso: `SKIP redes-sociales (${r.key})`, motivo: 'idRedSocial_no_encontrado' });
-          continue;
-        }
+        const idRS = REDES_ID[r.key];
+        if (!idRS) continue;
         const bodyRS = {
           usuario: r.usuario,
           cliente: { idCliente: serverId },
-          redSocial: { idRedSocial: entry.idRedSocial },
+          redSocial: { idRedSocial: idRS },
         };
-        const urlRS = `${BASE}/clientes-redes-sociales`;
+        const urlRS = `${baseActual}/clientes-redes-sociales`;
         log.pasos.push({ paso: `POST /clientes-redes-sociales (${r.key})`, url: urlRS, body: bodyRS });
-        const resRS = await postJson(urlRS, bodyRS, { retries: 1 });
-        if (!resRS.ok) {
-          console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /clientes-redes-sociales (${r.key})`);
-        }
+        await postJson(urlRS, bodyRS, { retries: 1 });
       }
 
       // Paso 3: categorías desde respuestas.json
@@ -358,7 +395,7 @@ export const syncClientesPendientesFS = async () => {
           categoria: { idCategoria: cat.idCategoria },
           cantidad: cat.cantidad, // respeta el tipo provisto por el flujo
         };
-        const urlCat = `${BASE}/clientes-categorias`;
+        const urlCat = `${baseActual}/clientes-categorias`;
         log.pasos.push({ paso: 'POST /clientes-categorias', url: urlCat, body: bodyCat });
         const resCat = await postJson(urlCat, bodyCat, { retries: 1 });
         if (!resCat.ok) {
@@ -367,21 +404,21 @@ export const syncClientesPendientesFS = async () => {
       }
 
       // Paso 4: preguntas (lote)
-      const preguntas = Array.isArray(respCliente?.preguntas) ? respCliente.preguntas : [];
+      const preguntasRaw = Array.isArray(respCliente?.preguntas) ? respCliente.preguntas : [];
+      const preguntas = preguntasRaw.flat ? preguntasRaw.flat() : ([]).concat(...preguntasRaw);
       if (preguntas.length > 0) {
-        const bodyLote = preguntas.map(p => ({
+        // Formato requerido por el endpoint:
+        // [{ cliente:{idCliente}, pregunta:{idPregunta}, instrumento:{idInstrumento:1}, respuesta, comentarios:"" }, ...]
+        const bodyLote = preguntas.map((p) => ({
           cliente: { idCliente: serverId },
           pregunta: { idPregunta: p.idPregunta },
           instrumento: { idInstrumento: 1 },
           respuesta: p.respuesta,
-          comentarios: p.comentarios ?? '',
+          comentarios: (p.comentarios ?? '').toString(),
         }));
-        const urlLote = `${BASE}/respuestas`;
-        log.pasos.push({ paso: 'POST /respuestas', url: urlLote, body: bodyLote });
-        const resLote = await postJson(urlLote, bodyLote, { retries: 1 });
-        if (!resLote.ok) {
-          console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /respuestas`);
-        }
+        const urlLote = `${baseActual}/respuestas/lote`;
+        log.pasos.push({ paso: 'POST /respuestas/lote', url: urlLote, body: bodyLote });
+        await postJson(urlLote, bodyLote, { retries: 1 });
       }
 
       // Paso 5: formas de pago (cuando respuesta == 1)
@@ -393,7 +430,7 @@ export const syncClientesPendientesFS = async () => {
           cliente: { idCliente: serverId },
           formaPago: { idFormaPago: fp.idFormaPago },
         };
-        const urlFP = `${BASE}/clientes-formas-pago`;
+        const urlFP = `${baseActual}/clientes-formas-pago`;
         log.pasos.push({ paso: 'POST /clientes-formas-pago', url: urlFP, body: bodyFP });
         const resFP = await postJson(urlFP, bodyFP, { retries: 1 });
         if (!resFP.ok) {
@@ -410,7 +447,7 @@ export const syncClientesPendientesFS = async () => {
           diaContado: Number(condPago.diaContado || 0),
           diaCredito: Number(condPago.diaCredito || 0),
         };
-        const urlCP = `${BASE}/clientes-condicion-pago`;
+        const urlCP = `${baseActual}/clientes-condicion-pago`;
         log.pasos.push({ paso: 'POST /clientes-condicion-pago', url: urlCP, body: bodyCP });
         const resCP = await postJson(urlCP, bodyCP, { retries: 1 });
         if (!resCP.ok) {
