@@ -234,6 +234,7 @@ let BASE = normalizeBaseUrl(URL_BASE);
 
 export const getBaseUrl = async () => {
   const cfg = await leerConfig();
+  console.log("Config:", cfg);
   return normalizeBaseUrl(cfg.urlBase || BASE);
 };
 
@@ -333,17 +334,6 @@ export const syncClientesPendientesFS = async () => {
   const clientesPath = MODELOS['clientes'];
   const clientes = await leerJSON(clientesPath, []);
   const respuestasData = await leerJSON(RESPUESTAS_PATH, {});
-
-  // === DEPURACIÓN INICIAL ===
-  try {
-    console.log('\n===== DEPURACION SINCRONIZACION (INICIO) =====');
-    console.log('Base URL:', baseActual);
-    console.log(`clientes.json (N=${Array.isArray(clientes) ? clientes.length : 0}):`);
-    console.log(JSON.stringify(clientes, null, 2));
-    console.log('respuestas.json:');
-    console.log(JSON.stringify(respuestasData, null, 2));
-    console.log('===== FIN DEPURACION INICIAL =====\n');
-  } catch (_) {}
 
   // Mapeo fijo de redes sociales a IDs solicitados por el backend
   const REDES_ID = { facebook: 1, instagram: 2, tiktok: 3, paginaWeb: 4 };

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+// pages/Login.js
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
-import { setBaseUrl, syncOnStartup } from '../utils/syncDataFS';
+import { syncOnStartup } from '../utils/syncDataFS';
+import { setApiBaseUrl, getApiBaseUrlOrDefault } from '../utils/config';
 
 export default function Login() {
   const navigation = useNavigation();
@@ -10,8 +12,13 @@ export default function Login() {
 
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
-  const [apiUrl, setApiUrl] = useState(URL_BASE || '');
+  const [apiUrl, setApiUrl] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Cargar la URL guardada o usar la del app.config.js como predeterminada
+    getApiBaseUrlOrDefault(URL_BASE || '').then(setApiUrl);
+  }, []);
 
   const validarCampos = () => {
     if (!usuario.trim() || !password.trim() || !apiUrl.trim()) {
@@ -22,8 +29,6 @@ export default function Login() {
   };
 
   const verificarCredenciales = () => {
-    // Estructura esperada en app.config.js:
-    // AUTENTICACION: { user: { user, password }, admin: { user, password } }
     const userCfg = AUTENTICACION?.user;
     const adminCfg = AUTENTICACION?.admin;
 
@@ -39,22 +44,27 @@ export default function Login() {
 
     const rol = verificarCredenciales();
     if (!rol) {
-      Alert.alert('Aviso', 'Error de acceso: usuario o contraseña invalida');
+      Alert.alert('Aviso', 'Error de acceso: usuario o contraseña inválida');
       return;
     }
 
     try {
       setLoading(true);
-      await setBaseUrl(apiUrl);
+
+      // Validar y guardar URL de la API
+      await setApiBaseUrl(apiUrl);
+
+      // Sincronización inicial
       await syncOnStartup();
 
+      // Navegar según rol
       if (rol === 'admin') {
         navigation.reset({ index: 0, routes: [{ name: 'Admin' }] });
       } else {
         navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] });
       }
     } catch (e) {
-      Alert.alert('Error', 'Ocurrió un error durante la autenticación/sincronización');
+      Alert.alert('Error', e.message || 'Ocurrió un error durante la autenticación/sincronización');
     } finally {
       setLoading(false);
     }
@@ -97,7 +107,11 @@ export default function Login() {
           placeholder="http://IP:PUERTO/api"
         />
 
-        <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={onAceptar} disabled={loading}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={onAceptar}
+          disabled={loading}
+        >
           <Text style={styles.buttonText}>{loading ? 'Procesando...' : 'Aceptar'}</Text>
         </TouchableOpacity>
       </View>
@@ -165,4 +179,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-

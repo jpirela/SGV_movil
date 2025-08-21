@@ -3,15 +3,17 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~5.0.4",
+    "@expo/metro-runtime": "^5.0.4",
     "@expo/vector-icons": "^14.1.0",
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-picker/picker": "2.11.1",
+    "@react-native/metro-config": "^0.81.0",
     "@react-navigation/bottom-tabs": "^6.5.7",
     "@react-navigation/native": "^6.1.7",
     "@react-navigation/stack": "^6.4.1",
@@ -21,6 +23,9 @@
     "expo-font": "^13.3.2",
     "expo-location": "~18.1.6",
     "expo-status-bar": "~2.2.3",
+    "metro": "0.82.0",
+    "metro-config": "0.82.0",
+    "metro-resolver": "0.82.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
@@ -30,12 +35,16 @@
     "react-native-paper": "4.9.2",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
+    "react-native-svg-transformer": "^1.5.1",
     "react-native-tab-view": "^4.1.2",
-    "react-native-vector-icons": "^10.2.0",
+    "react-native-vector-icons": "10.0.3",
     "react-native-web": "^0.20.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "@react-native-community/cli": "^20.0.0"
   },
-  "private": true
+  "private": true,
+  "version": "1.0.0"
 }

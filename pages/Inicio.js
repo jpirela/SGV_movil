@@ -1,3 +1,4 @@
+// pages/Inicio.js
 import { useState, useMemo, useEffect } from 'react';
 import {
   View,
