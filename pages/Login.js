@@ -16,8 +16,12 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Cargar la URL guardada o usar la del app.config.js como predeterminada
-    getApiBaseUrlOrDefault(URL_BASE || '').then(setApiUrl);
+    // Cargar URL guardada o usar la del app.config.js
+    const cargarUrl = async () => {
+      const url = await getApiBaseUrlOrDefault(URL_BASE || '');
+      setApiUrl(url);
+    };
+    cargarUrl();
   }, []);
 
   const validarCampos = () => {
@@ -51,25 +55,24 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // Validar y guardar URL de la API
-      await setApiBaseUrl(apiUrl);
+      // Validar y guardar la URL dinámica
+      const validUrl = await setApiBaseUrl(apiUrl);
+
+      console.log('URL base válida y guardada:', validUrl);
 
       // Sincronización inicial
       await syncOnStartup();
 
       // Navegar según rol
-      if (rol === 'admin') {
-        navigation.reset({ index: 0, routes: [{ name: 'Admin' }] });
-      } else {
-        navigation.reset({ index: 0, routes: [{ name: 'Inicio' }] });
-      }
+      navigation.reset({ index: 0, routes: [{ name: rol === 'admin' ? 'Admin' : 'Inicio' }] });
+
     } catch (e) {
       Alert.alert('Error', e.message || 'Ocurrió un error durante la autenticación/sincronización');
     } finally {
       setLoading(false);
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>

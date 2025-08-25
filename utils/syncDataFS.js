@@ -1,3 +1,4 @@
+// syncData.js
 import * as FileSystem from 'expo-file-system';
 import Constants from 'expo-constants';
 import NetInfo from '@react-native-community/netinfo';
@@ -232,18 +233,15 @@ const escribirConfig = async (cfg) => {
 
 let BASE = normalizeBaseUrl(URL_BASE);
 
+// Devuelve siempre la URL base actual
 export const getBaseUrl = async () => {
-  const cfg = await leerConfig();
-  console.log("Config:", cfg);
-  return normalizeBaseUrl(cfg.urlBase || BASE);
+  return BASE;
 };
 
+// Permite modificarla dinámicamente (ej. desde Login.js)
+// Solo afecta a la sesión actual (no se guarda en el FS)
 export const setBaseUrl = async (url) => {
-  const norm = normalizeBaseUrl(url);
-  const cfg = await leerConfig();
-  cfg.urlBase = norm;
-  await escribirConfig(cfg);
-  BASE = norm || BASE; // actualizar en memoria para sesiones actuales
+  BASE = normalizeBaseUrl(url) || BASE;
   return BASE;
 };
 

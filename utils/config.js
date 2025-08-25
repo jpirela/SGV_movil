@@ -3,25 +3,33 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'url_base';
 
 /**
+ * Normaliza la URL eliminando barra final y asegurando http/https
+ */
+const normalizeUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  let base = url.trim();
+  if (!base.startsWith('http://') && !base.startsWith('https://')) {
+    base = 'http://' + base;
+  }
+  // eliminar barra final
+  base = base.replace(/\/$/, '');
+  return base;
+};
+
+/**
  * Verifica si la URL es válida probando un endpoint real (/clientes)
  * @param {string} url - Dirección base de la API (puede incluir /api al final)
  * @returns {Promise<boolean>}
  */
 export const validateApiUrl = async (url) => {
   try {
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      return false;
-    }
-
-    // Asegurar que no haya doble slash
-    const testUrl = url.endsWith('/') ? `${url}clientes` : `${url}/clientes`;
-
+    const normalized = normalizeUrl(url);
+    const testUrl = `${normalized}/clientes`;
     const response = await fetch(testUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
     });
-
-    return response.ok; // true si el código HTTP es 200-299
+    return response.ok;
   } catch (error) {
     return false;
   }
@@ -29,14 +37,17 @@ export const validateApiUrl = async (url) => {
 
 /**
  * Guarda la URL base de la API después de validarla
- * @param {string} url - Dirección base de la API (con http o https)
+ * @param {string} url - Dirección base de la API
+ * @returns {Promise<string>} - Retorna la URL normalizada y válida
  */
 export const setApiBaseUrl = async (url) => {
-  const isValid = await validateApiUrl(url);
+  const normalized = normalizeUrl(url);
+  const isValid = await validateApiUrl(normalized);
   if (!isValid) {
-    throw new Error('No se pudo validar la URL de la API. Verifica que el servidor esté activo.');
+    throw new Error(`No se pudo validar la URL de la API. Verifica que el servidor esté activo: ${normalized}`);
   }
-  await AsyncStorage.setItem(STORAGE_KEY, url);
+  await AsyncStorage.setItem(STORAGE_KEY, normalized);
+  return normalized;
 };
 
 /**
@@ -54,7 +65,7 @@ export const getApiBaseUrl = async () => {
  */
 export const getApiBaseUrlOrDefault = async (defaultUrl) => {
   const url = await AsyncStorage.getItem(STORAGE_KEY);
-  return url || defaultUrl;
+  return url || normalizeUrl(defaultUrl);
 };
 
 /**
