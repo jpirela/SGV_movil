@@ -24,7 +24,7 @@ const normalizeUrl = (url) => {
 export const validateApiUrl = async (url) => {
   try {
     const normalized = normalizeUrl(url);
-    const testUrl = `${normalized}/clientes`;
+    const testUrl = `${url}/clientes`;
     const response = await fetch(testUrl, {
       method: 'GET',
       headers: { Accept: 'application/json' },
