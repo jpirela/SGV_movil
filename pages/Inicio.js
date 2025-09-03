@@ -37,13 +37,6 @@ const Inicio = () => {
 
   useEffect(() => {
     cargarClientes();
-    (async () => {
-      try {
-        await syncOnStartup();
-      } catch (e) {
-        // silencio: solo logs de sync a API desde la función
-      }
-    })();
   }, [cargarClientes]);
 
   // Recargar datos cuando la pantalla tome foco (al volver de AgregarCliente)

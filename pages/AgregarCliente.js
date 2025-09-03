@@ -4,7 +4,7 @@ import { TabView, TabBar } from 'react-native-tab-view';
 import FichaCliente from './FichaCliente';
 import FichaHuevos from './FichaHuevos';
 import { useNavigation } from '@react-navigation/native';
-import { guardarNuevoCliente, guardarRespuestas } from '../utils/syncDataFS';
+import { guardarNuevoCliente, guardarRespuestas, syncClientesPendientesFS } from '../utils/syncDataFS';
 
 export default function AgregarCliente() {
   const layout = useWindowDimensions();
@@ -30,131 +30,132 @@ export default function AgregarCliente() {
   };
 
   const handleGuardar = async () => {
-  try {
-    const clienteValid = clienteRef.current?.validateData();
-    const huevosValid = huevosRef.current?.validateData();
+    try {
+      const clienteValid = clienteRef.current?.validateData();
+      const huevosValid = huevosRef.current?.validateData();
 
-    if (!clienteValid || !huevosValid) {
-      const clienteErrores = clienteRef.current?.getErrores();
-      const huevosErrores = huevosRef.current?.getErrores();
-      console.log('Errores en Ficha Cliente:', clienteErrores);
-      console.log('Errores en Ficha Huevos:', huevosErrores);
-      Alert.alert("Faltan datos por recolectar");
-      return;
+      if (!clienteValid || !huevosValid) {
+        const clienteErrores = clienteRef.current?.getErrores();
+        const huevosErrores = huevosRef.current?.getErrores();
+        console.log('Errores en Ficha Cliente:', clienteErrores);
+        console.log('Errores en Ficha Huevos:', huevosErrores);
+        Alert.alert("Faltan datos por recolectar");
+        return;
+      }
+
+      // Limpiar errores si la validación es exitosa
+      clienteRef.current?.clearErrors();
+      huevosRef.current?.clearErrors();
+
+      // Obtener datos
+      const clienteData = clienteRef.current?.getData();
+      const huevosData = huevosRef.current?.getData();
+      
+      console.log('\n🔍 === DEBUG: PROCESO DE GUARDADO ===');
+      console.log('\n📋 DATOS DEL CLIENTE:');
+      console.log(JSON.stringify(clienteData, null, 2));
+      
+      console.log('\n🥚 DATOS DE HUEVOS:');
+      console.log(JSON.stringify(huevosData, null, 2));
+
+      // Transformar cliente para guardar ubicaciones como objetos con IDs
+      const transformarClienteUbicacion = (data) => {
+        const parseNum = (v) => {
+          if (v === null || v === undefined || v === '') return undefined;
+          const n = parseInt(v, 10);
+          return isNaN(n) ? undefined : n;
+        };
+        const idEstado = parseNum(data.estado);
+        const idMunicipio = parseNum(data.municipio);
+        const idParroquia = parseNum(data.parroquia);
+        const idCiudad = parseNum(data.ciudad);
+
+        return {
+          ...data,
+          ...(idEstado !== undefined ? { estado: { idEstado } } : {}),
+          ...(idMunicipio !== undefined ? { municipio: { idMunicipio } } : {}),
+          ...(idParroquia !== undefined ? { parroquia: { idParroquia } } : {}),
+          ...(idCiudad !== undefined ? { ciudad: { idCiudad } } : {}),
+        };
+      };
+
+      const clienteDataTransformado = transformarClienteUbicacion(clienteData);
+
+      // Guardar cliente y obtener idCliente
+      console.log('\n💾 Guardando cliente...');
+      const idCliente = await guardarNuevoCliente(clienteDataTransformado);
+      console.log('✅ Cliente guardado con ID:', idCliente);
+
+      // Transformar datos al formato esperado
+      const transformarDatos = (huevosData) => {
+        // Categorías: convertir cantidades a número y filtrar las vacías
+        const categorias = Object.entries(huevosData.categorias || {})
+          .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+          .map(([key, value]) => {
+            const id = parseInt(key.replace('cat_', ''), 10);
+            const cantidad = isNaN(parseInt(value, 10)) ? value : parseInt(value, 10);
+            return { idCategoria: id, cantidad };
+          });
+
+        // Preguntas: convertir respuestas numéricas a número y filtrar las vacías
+        const preguntas = Object.entries(huevosData.preguntas || {})
+          .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
+          .map(([key, value]) => {
+            const idPregunta = parseInt(key, 10);
+            // Si el valor es numérico, convertirlo a número, sino mantenerlo como string
+            const respuesta = !isNaN(value) && !isNaN(parseFloat(value)) && isFinite(value) 
+              ? parseFloat(value) 
+              : value;
+            return { idPregunta, respuesta };
+          });
+
+        // Forma de pago: incluir todas las formas con sus respuestas (1=Sí, 2=No)
+        const formaPago = Object.entries(huevosData.formaPago || {})
+          .map(([key, value]) => {
+            const id = parseInt(key.replace('forma_', ''), 10);
+            const respuesta = value === '1' ? 1 : 2;
+            return { idFormaPago: id, respuesta };
+          });
+
+        const condicionIdStr = huevosData.condicionPago?.['condicion_pago_select'];
+        const condicionId = condicionIdStr ? parseInt(condicionIdStr.replace('condpago_', ''), 10) : null;
+
+        const condicionPago = condicionId
+          ? {
+              idCondicionPago: condicionId,
+              ...(condicionId === 2
+                ? { diaCredito: parseInt(huevosData.diasCredito || '0', 10) }
+                : { diaContado: 0 }),
+            }
+          : {};
+
+        return {
+          categorias,
+          preguntas,
+          'forma-pago': formaPago,
+          'condicion-pago': condicionPago,
+        };
+      };
+
+      const respuestasFormateadas = transformarDatos(huevosData);
+      
+      console.log('\n📝 RESPUESTAS FORMATEADAS:');
+      console.log(JSON.stringify(respuestasFormateadas, null, 2));
+
+      // Guardar respuestas
+      console.log('\n💾 Guardando respuestas...');
+      await guardarRespuestas(idCliente, respuestasFormateadas);
+      console.log('✅ Respuestas guardadas correctamente');
+      console.log('🔚 === FIN DEBUG: PROCESO DE GUARDADO ===\n');
+
+      syncClientesPendientesFS();
+
+      navigation.goBack();
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      Alert.alert("Error al guardar los datos");
     }
-
-    // Limpiar errores si la validación es exitosa
-    clienteRef.current?.clearErrors();
-    huevosRef.current?.clearErrors();
-
-    // Obtener datos
-    const clienteData = clienteRef.current?.getData();
-    const huevosData = huevosRef.current?.getData();
-    
-    console.log('\n🔍 === DEBUG: PROCESO DE GUARDADO ===');
-    console.log('\n📋 DATOS DEL CLIENTE:');
-    console.log(JSON.stringify(clienteData, null, 2));
-    
-    console.log('\n🥚 DATOS DE HUEVOS:');
-    console.log(JSON.stringify(huevosData, null, 2));
-
-    // Transformar cliente para guardar ubicaciones como objetos con IDs
-    const transformarClienteUbicacion = (data) => {
-      const parseNum = (v) => {
-        if (v === null || v === undefined || v === '') return undefined;
-        const n = parseInt(v, 10);
-        return isNaN(n) ? undefined : n;
-      };
-      const idEstado = parseNum(data.estado);
-      const idMunicipio = parseNum(data.municipio);
-      const idParroquia = parseNum(data.parroquia);
-      const idCiudad = parseNum(data.ciudad);
-
-      return {
-        ...data,
-        ...(idEstado !== undefined ? { estado: { idEstado } } : {}),
-        ...(idMunicipio !== undefined ? { municipio: { idMunicipio } } : {}),
-        ...(idParroquia !== undefined ? { parroquia: { idParroquia } } : {}),
-        ...(idCiudad !== undefined ? { ciudad: { idCiudad } } : {}),
-      };
-    };
-
-    const clienteDataTransformado = transformarClienteUbicacion(clienteData);
-
-    // Guardar cliente y obtener idCliente
-    console.log('\n💾 Guardando cliente...');
-    const idCliente = await guardarNuevoCliente(clienteDataTransformado);
-    console.log('✅ Cliente guardado con ID:', idCliente);
-
-    // Transformar datos al formato esperado
-    const transformarDatos = (huevosData) => {
-      // Categorías: convertir cantidades a número y filtrar las vacías
-      const categorias = Object.entries(huevosData.categorias || {})
-        .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
-        .map(([key, value]) => {
-          const id = parseInt(key.replace('cat_', ''), 10);
-          const cantidad = isNaN(parseInt(value, 10)) ? value : parseInt(value, 10);
-          return { idCategoria: id, cantidad };
-        });
-
-      // Preguntas: convertir respuestas numéricas a número y filtrar las vacías
-      const preguntas = Object.entries(huevosData.preguntas || {})
-        .filter(([_, value]) => value !== '' && value !== null && value !== undefined)
-        .map(([key, value]) => {
-          const idPregunta = parseInt(key, 10);
-          // Si el valor es numérico, convertirlo a número, sino mantenerlo como string
-          const respuesta = !isNaN(value) && !isNaN(parseFloat(value)) && isFinite(value) 
-            ? parseFloat(value) 
-            : value;
-          return { idPregunta, respuesta };
-        });
-
-      // Forma de pago: incluir todas las formas con sus respuestas (1=Sí, 2=No)
-      const formaPago = Object.entries(huevosData.formaPago || {})
-        .map(([key, value]) => {
-          const id = parseInt(key.replace('forma_', ''), 10);
-          const respuesta = value === '1' ? 1 : 2;
-          return { idFormaPago: id, respuesta };
-        });
-
-      const condicionIdStr = huevosData.condicionPago?.['condicion_pago_select'];
-      const condicionId = condicionIdStr ? parseInt(condicionIdStr.replace('condpago_', ''), 10) : null;
-
-      const condicionPago = condicionId
-        ? {
-            idCondicionPago: condicionId,
-            ...(condicionId === 2
-              ? { diaCredito: parseInt(huevosData.diasCredito || '0', 10) }
-              : { diaContado: 0 }),
-          }
-        : {};
-
-      return {
-        categorias,
-        preguntas,
-        'forma-pago': formaPago,
-        'condicion-pago': condicionPago,
-      };
-    };
-
-    const respuestasFormateadas = transformarDatos(huevosData);
-    
-    console.log('\n📝 RESPUESTAS FORMATEADAS:');
-    console.log(JSON.stringify(respuestasFormateadas, null, 2));
-
-    // Guardar respuestas
-    console.log('\n💾 Guardando respuestas...');
-    await guardarRespuestas(idCliente, respuestasFormateadas);
-    console.log('✅ Respuestas guardadas correctamente');
-    console.log('🔚 === FIN DEBUG: PROCESO DE GUARDADO ===\n');
-
-    Alert.alert("Datos guardados exitosamente");
-    navigation.goBack();
-  } catch (error) {
-    console.error('Error al guardar:', error);
-    Alert.alert("Error al guardar los datos");
-  }
-};
+  };
 
   const renderTabBar = (props) => (
     <View style={styles.tabHeader}>

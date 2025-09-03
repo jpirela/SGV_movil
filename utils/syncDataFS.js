@@ -1,17 +1,24 @@
-// syncData.js
+// utils/syncDataFS.js
 import * as FileSystem from 'expo-file-system';
-import Constants from 'expo-constants';
+import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
+import { getApiBaseUrlOrDefault } from './config';
 
-const { URL_BASE, MODELOS: MODELOS_NOMBRES, AUTENTICACION } = Constants.expoConfig.extra;
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
-const CONFIG_PATH = `${DATA_DIR}config.json`;
 
-// Construimos un objeto con nombre de modelo -> ruta local
-const MODELOS = {};
-MODELOS_NOMBRES.forEach((modelo) => {
-  MODELOS[modelo] = `${DATA_DIR}${modelo}.json`;
-});
+let MODELOS = {};
+let MODELOS_NOMBRES = [];
+
+/**
+ * Inicializa las rutas de los modelos
+ */
+export const initModelos = (modelos) => {
+  MODELOS_NOMBRES = modelos;
+  MODELOS = {};
+  modelos.forEach((modelo) => {
+    MODELOS[modelo] = `${DATA_DIR}${modelo}.json`;
+  });
+};
 
 /**
  * Asegura que el directorio de datos exista
@@ -22,6 +29,7 @@ const asegurarDataDir = async () => {
     await FileSystem.makeDirectoryAsync(DATA_DIR, { intermediates: true });
   }
 };
+
 
 /**
  * Devuelve el nombre del modelo y su ruta de archivo
@@ -63,29 +71,33 @@ export const guardarRespuestas = async (idCliente, respuestas) => {
  */
 export const leerModeloFS = async (modelo) => {
   const filePath = MODELOS[modelo];
-  
+
   if (!filePath) {
     console.warn(`❌ Modelo '${modelo}' no está configurado en MODELOS`);
     return [];
   }
-  
+
   try {
     const archivoExiste = await FileSystem.getInfoAsync(filePath);
     if (!archivoExiste.exists) {
       console.warn(`📄 Archivo ${modelo}.json no encontrado en: ${filePath}`);
       return [];
     }
-    
+
     const contenido = await FileSystem.readAsStringAsync(filePath);
-    
+
     if (!contenido || contenido.trim() === '') {
       console.warn(`📄 Archivo ${modelo}.json está vacío`);
       return [];
     }
-    
+
     const datos = JSON.parse(contenido);
-    console.log(`✅ ${modelo}.json leído correctamente - ${Array.isArray(datos) ? datos.length : 'N/A'} registros`);
-    
+    console.log(
+      `✅ ${modelo}.json leído correctamente - ${
+        Array.isArray(datos) ? datos.length : 'N/A'
+      } registros`
+    );
+
     return datos;
   } catch (err) {
     console.warn(`❌ Error al leer ${modelo}.json:`, err.message);
@@ -106,41 +118,41 @@ export const leerClientesLocales = async () => {
  */
 export const guardarNuevoCliente = async (clienteData) => {
   const filePath = MODELOS['clientes'];
-  
+
   if (!filePath) {
     throw new Error('Modelo clientes no está configurado');
   }
-  
+
   try {
     await asegurarDataDir();
-    
+
     // Leer clientes existentes
     const clientesExistentes = await leerClientesLocales();
-    
+
     // Generar nuevo idCliente secuencial
     const maxId = clientesExistentes.reduce((max, cliente) => {
       const id = parseInt(cliente.idCliente) || 0;
       return id > max ? id : max;
     }, 0);
     const nuevoIdCliente = maxId + 1;
-    
+
     // Crear nuevo cliente con idCliente
     const nuevoCliente = {
       idCliente: nuevoIdCliente.toString(),
       fechaCreacion: new Date().toISOString(),
-      fechaSincronizacion: "",
-      ...clienteData
+      fechaSincronizacion: '',
+      ...clienteData,
     };
-    
+
     // Agregar a la lista
     const clientesActualizados = [...clientesExistentes, nuevoCliente];
-    
+
     const json = JSON.stringify(clientesActualizados, null, 2);
-    
+
     await FileSystem.writeAsStringAsync(filePath, json, {
       encoding: FileSystem.EncodingType.UTF8,
     });
-    
+
     console.log(`✅ Cliente guardado con ID: ${nuevoIdCliente}`);
     return nuevoIdCliente.toString();
   } catch (error) {
@@ -149,9 +161,6 @@ export const guardarNuevoCliente = async (clienteData) => {
   }
 };
 
-/**
- * Guarda datos de clientes en el almacenamiento local (función original para compatibilidad)
- */
 /**
  * Elimina las respuestas de un cliente específico por su idCliente
  */
@@ -170,9 +179,13 @@ export const eliminarRespuestasCliente = async (idCliente) => {
 
     if (respuestasData[idCliente]) {
       delete respuestasData[idCliente];
-      await FileSystem.writeAsStringAsync(filePath, JSON.stringify(respuestasData, null, 2), {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      await FileSystem.writeAsStringAsync(
+        filePath,
+        JSON.stringify(respuestasData, null, 2),
+        {
+          encoding: FileSystem.EncodingType.UTF8,
+        }
+      );
     }
   } catch (error) {
     throw error;
@@ -181,11 +194,11 @@ export const eliminarRespuestasCliente = async (idCliente) => {
 
 export const guardarClientesLocales = async (clientes) => {
   const filePath = MODELOS['clientes'];
-  
+
   if (!filePath) {
     throw new Error('Modelo clientes no está configurado');
   }
-  
+
   try {
     await asegurarDataDir();
     const json = JSON.stringify(clientes || [], null, 2);
@@ -202,7 +215,6 @@ export const guardarClientesLocales = async (clientes) => {
  * ========================= SINCRONIZACIÓN A LA API (FS -> API) =========================
  */
 
-// Normaliza URL_BASE (corrige 'http:/' -> 'http://', quita '/'' final)
 const normalizeBaseUrl = (raw) => {
   if (!raw || typeof raw !== 'string') return '';
   let base = raw.trim();
@@ -212,34 +224,15 @@ const normalizeBaseUrl = (raw) => {
   return base;
 };
 
-// Persistencia de configuración (ej. URL de API definida en Login)
-const leerConfig = async () => {
-  try {
-    const info = await FileSystem.getInfoAsync(CONFIG_PATH);
-    if (!info.exists) return {};
-    const content = await FileSystem.readAsStringAsync(CONFIG_PATH);
-    return content ? JSON.parse(content) : {};
-  } catch (_) {
-    return {};
-  }
-};
+let BASE = '';
 
-const escribirConfig = async (cfg) => {
-  await asegurarDataDir();
-  await FileSystem.writeAsStringAsync(CONFIG_PATH, JSON.stringify(cfg || {}, null, 2), {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-};
-
-let BASE = normalizeBaseUrl(URL_BASE);
-
-// Devuelve siempre la URL base actual
 export const getBaseUrl = async () => {
+  if (!BASE) {
+    BASE = normalizeBaseUrl(await getApiBaseUrlOrDefault());
+  }
   return BASE;
 };
 
-// Permite modificarla dinámicamente (ej. desde Login.js)
-// Solo afecta a la sesión actual (no se guarda en el FS)
 export const setBaseUrl = async (url) => {
   BASE = normalizeBaseUrl(url) || BASE;
   return BASE;
@@ -247,13 +240,6 @@ export const setBaseUrl = async (url) => {
 
 const defaultHeaders = () => {
   const headers = { 'Content-Type': 'application/json' };
-  // Autenticación opcional (Basic) si está configurada
-  try {
-    if (AUTENTICACION && AUTENTICACION.user && AUTENTICACION.password && globalThis.btoa) {
-      const token = globalThis.btoa(`${AUTENTICACION.user}:${AUTENTICACION.password}`);
-      headers['Authorization'] = `Basic ${token}`;
-    }
-  } catch (_) { /* sin auth si no es posible */ }
   return headers;
 };
 
@@ -270,7 +256,11 @@ const postJson = async (url, body, { retries = 1, retryDelayMs = 600 } = {}) => 
       });
       const text = await res.text();
       let parsed;
-      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+      try {
+        parsed = text ? JSON.parse(text) : null;
+      } catch {
+        parsed = text;
+      }
       if (!res.ok) {
         const err = new Error(`HTTP ${res.status}`);
         err.status = res.status;
@@ -302,7 +292,9 @@ const leerJSON = async (path, fallback = {}) => {
 const escribirJSON = async (path, data) => {
   await asegurarDataDir();
   const json = JSON.stringify(data, null, 2);
-  await FileSystem.writeAsStringAsync(path, json, { encoding: FileSystem.EncodingType.UTF8 });
+  await FileSystem.writeAsStringAsync(path, json, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
 };
 
 const pickClienteData = (cliente) => {
@@ -314,11 +306,6 @@ const getClienteByIdFromRespuestas = (respuestasData, idLocal) => {
   return respuestasData?.[idLocal] || {};
 };
 
-const getModeloLocal = async (nombre) => {
-  const path = MODELOS[nombre];
-  return await leerJSON(path, Array.isArray(path) ? [] : []);
-};
-
 export const syncClientesPendientesFS = async () => {
   const baseActual = await getBaseUrl();
   const debug = { inicio: new Date().toISOString(), base: baseActual, clientesProcesados: [] };
@@ -326,6 +313,7 @@ export const syncClientesPendientesFS = async () => {
   const netInfo = await NetInfo.fetch();
   if (!netInfo.isConnected) {
     console.log('📵 Sin conexión. Se omite sincronización de clientes -> API');
+    Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API') 
     return { ok: false, razon: 'sin_conexion' };
   }
 
@@ -333,32 +321,29 @@ export const syncClientesPendientesFS = async () => {
   const clientes = await leerJSON(clientesPath, []);
   const respuestasData = await leerJSON(RESPUESTAS_PATH, {});
 
-  // Mapeo fijo de redes sociales a IDs solicitados por el backend
   const REDES_ID = { facebook: 1, instagram: 2, tiktok: 3, paginaWeb: 4 };
 
-  const pendientes = (Array.isArray(clientes) ? clientes : []).filter(c => (c?.fechaSincronizacion ?? '') === '');
+  const pendientes = (Array.isArray(clientes) ? clientes : []).filter(
+    (c) => (c?.fechaSincronizacion ?? '') === ''
+  );
 
   for (const cliente of pendientes) {
     const log = { idLocal: String(cliente.idCliente), pasos: [] };
     try {
-      // Paso 1: crear cliente
       const dataCliente = pickClienteData(cliente);
       const urlClientes = `${baseActual}/clientes`;
       log.pasos.push({ paso: 'POST /clientes', url: urlClientes, body: dataCliente });
       const resCliente = await postJson(urlClientes, dataCliente, { retries: 2 });
       if (!resCliente.ok || !resCliente.data?.idCliente) {
-        const err = resCliente.error || new Error('Respuesta sin idCliente');
         debug.clientesProcesados.push({ ...log, estado: 'fallo' });
-        console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /clientes`, err?.message || '');
         continue;
       }
       const serverId = resCliente.data.idCliente;
       log.idServer = serverId;
 
-      // Paso 2: redes sociales (mapeo directo a IDs)
       const redes = ['facebook', 'instagram', 'tiktok', 'paginaWeb']
-        .map(key => ({ key, usuario: (cliente?.[key] || '').toString().trim() }))
-        .filter(x => x.usuario);
+        .map((key) => ({ key, usuario: (cliente?.[key] || '').toString().trim() }))
+        .filter((x) => x.usuario);
 
       for (const r of redes) {
         const idRS = REDES_ID[r.key];
@@ -373,7 +358,6 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlRS, bodyRS, { retries: 1 });
       }
 
-      // Paso 3: categorías desde respuestas.json
       const respCliente = getClienteByIdFromRespuestas(respuestasData, String(cliente.idCliente));
       const categorias = Array.isArray(respCliente?.categorias) ? respCliente.categorias : [];
       for (const cat of categorias) {
@@ -381,22 +365,16 @@ export const syncClientesPendientesFS = async () => {
         const bodyCat = {
           cliente: { idCliente: serverId },
           categoria: { idCategoria: cat.idCategoria },
-          cantidad: cat.cantidad, // respeta el tipo provisto por el flujo
+          cantidad: cat.cantidad,
         };
         const urlCat = `${baseActual}/clientes-categorias`;
         log.pasos.push({ paso: 'POST /clientes-categorias', url: urlCat, body: bodyCat });
-        const resCat = await postJson(urlCat, bodyCat, { retries: 1 });
-        if (!resCat.ok) {
-          console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /clientes-categorias`);
-        }
+        await postJson(urlCat, bodyCat, { retries: 1 });
       }
 
-      // Paso 4: preguntas (lote)
       const preguntasRaw = Array.isArray(respCliente?.preguntas) ? respCliente.preguntas : [];
-      const preguntas = preguntasRaw.flat ? preguntasRaw.flat() : ([]).concat(...preguntasRaw);
+      const preguntas = preguntasRaw.flat ? preguntasRaw.flat() : [].concat(...preguntasRaw);
       if (preguntas.length > 0) {
-        // Formato requerido por el endpoint:
-        // [{ cliente:{idCliente}, pregunta:{idPregunta}, instrumento:{idInstrumento:1}, respuesta, comentarios:"" }, ...]
         const bodyLote = preguntas.map((p) => ({
           cliente: { idCliente: serverId },
           pregunta: { idPregunta: p.idPregunta },
@@ -409,7 +387,6 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlLote, bodyLote, { retries: 1 });
       }
 
-      // Paso 5: formas de pago (cuando respuesta == 1)
       const formasPago = Array.isArray(respCliente?.['forma-pago']) ? respCliente['forma-pago'] : [];
       for (const fp of formasPago) {
         if (fp?.respuesta !== 1 || !fp?.idFormaPago) continue;
@@ -420,13 +397,9 @@ export const syncClientesPendientesFS = async () => {
         };
         const urlFP = `${baseActual}/clientes-formas-pago`;
         log.pasos.push({ paso: 'POST /clientes-formas-pago', url: urlFP, body: bodyFP });
-        const resFP = await postJson(urlFP, bodyFP, { retries: 1 });
-        if (!resFP.ok) {
-          console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /clientes-formas-pago`);
-        }
+        await postJson(urlFP, bodyFP, { retries: 1 });
       }
 
-      // Paso 6: condición de pago
       const condPago = respCliente?.['condicion-pago'];
       if (condPago?.idCondicionPago) {
         const bodyCP = {
@@ -437,50 +410,65 @@ export const syncClientesPendientesFS = async () => {
         };
         const urlCP = `${baseActual}/clientes-condicion-pago`;
         log.pasos.push({ paso: 'POST /clientes-condicion-pago', url: urlCP, body: bodyCP });
-        const resCP = await postJson(urlCP, bodyCP, { retries: 1 });
-        if (!resCP.ok) {
-          console.warn(`Sincronización a API: cliente ${cliente.idCliente} fallo en /clientes-condicion-pago`);
-        }
+        await postJson(urlCP, bodyCP, { retries: 1 });
       }
 
-      // Verificar si hubo errores en los pasos
-      const huboError = log.pasos.some(p => p.error);
-      if (!huboError) {
-        // Actualizar fechaSincronizacion del cliente local
-        const ahora = new Date().toISOString();
-        const idx = clientes.findIndex(c => String(c.idCliente) === String(cliente.idCliente));
-        if (idx >= 0) {
-          clientes[idx] = { ...clientes[idx], fechaSincronizacion: ahora };
-          await escribirJSON(clientesPath, clientes);
-        }
-        log.estado = 'ok';
-        log.fechaSincronizacion = ahora;
-      } else {
-        log.estado = 'parcial';
+      const ahora = new Date().toISOString();
+      const idx = clientes.findIndex((c) => String(c.idCliente) === String(cliente.idCliente));
+      if (idx >= 0) {
+        clientes[idx] = { ...clientes[idx], fechaSincronizacion: ahora };
+        await escribirJSON(clientesPath, clientes);
       }
+      log.estado = 'ok';
+      log.fechaSincronizacion = ahora;
     } catch (e) {
       log.pasos.push({ paso: 'exception', error: e.message });
       log.estado = 'fallo';
+      Alert.alert("Error al guardar los datos: ", e.message);
     }
     debug.clientesProcesados.push(log);
+    Alert.alert("Datos guardados exitosamente...");
   }
 
   debug.fin = new Date().toISOString();
-  // Resumen
   const total = debug.clientesProcesados.length;
-  const ok = debug.clientesProcesados.filter(c => c.estado === 'ok').length;
-  const parcial = debug.clientesProcesados.filter(c => c.estado === 'parcial').length;
-  const fallo = debug.clientesProcesados.filter(c => c.estado === 'fallo').length;
+  const ok = debug.clientesProcesados.filter((c) => c.estado === 'ok').length;
+  const parcial = debug.clientesProcesados.filter((c) => c.estado === 'parcial').length;
+  const fallo = debug.clientesProcesados.filter((c) => c.estado === 'fallo').length;
   console.log('Sincronización a API: resumen', { total, ok, parcial, fallo });
   debug.resumen = { total, ok, parcial, fallo };
   return { ok: true, debug };
 };
 
-// Función para invocar al inicio de la aplicación
 export const syncOnStartup = async () => {
   try {
-    await syncClientesPendientesFS();
+    await syncModelosFS();
   } catch (e) {
     console.warn('❌ Error en syncOnStartup:', e.message);
+  }
+};
+
+export const syncModelosFS = async () => {
+  await asegurarDataDir();
+  const baseUrl = await getApiBaseUrlOrDefault();
+  if (!baseUrl) {
+    console.warn('⚠️ No hay URL base configurada');
+    return;
+  }
+  for (const modelo of MODELOS_NOMBRES) {
+    try {
+      const res = await fetch(`${baseUrl}/${modelo}`, { headers: defaultHeaders() });
+      if (!res.ok) {
+        console.warn(`❌ Error HTTP ${res.status} en modelo ${modelo}`);
+        continue;
+      }
+      const data = await res.json();
+      await FileSystem.writeAsStringAsync(MODELOS[modelo], JSON.stringify(data, null, 2));
+      console.log(
+        `✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros)`
+      );
+    } catch (err) {
+      console.warn(`❌ Error sincronizando ${modelo}:`, err.message);
+    }
   }
 };

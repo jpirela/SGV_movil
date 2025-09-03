@@ -1,3 +1,4 @@
+// src/pages/FichaHuevos.js
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import {
   ScrollView,

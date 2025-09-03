@@ -1,31 +1,37 @@
 // pages/Login.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
-import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
-import { syncOnStartup } from '../utils/syncDataFS';
-import { setApiBaseUrl, getApiBaseUrlOrDefault } from '../utils/config';
+import { syncOnStartup, initModelos } from '../utils/syncDataFS'; // 👈 ajustado
+import { setApiBaseUrl, getApiBaseUrlOrDefault, getAuthConfig } from '../utils/config';
+import { useAppEnvironment } from '../hooks/useAppEnvironment'; 
+import { useExpoHostIp } from '../hooks/useExpoHostIp';
 
 export default function Login() {
   const navigation = useNavigation();
-  const { AUTENTICACION, URL_BASE } = Constants.expoConfig?.extra || {};
+  const AUTENTICACION = getAuthConfig();
+  const { isExpo } = useAppEnvironment();
 
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [apiUrl, setApiUrl] = useState('');
   const [loading, setLoading] = useState(false);
+  const expoHost = useExpoHostIp(8080, '/api');
 
   useEffect(() => {
-    // Cargar URL guardada o usar la del app.config.js
-    const cargarUrl = async () => {
-      const url = await getApiBaseUrlOrDefault(URL_BASE || '');
-      setApiUrl(url);
-    };
-    cargarUrl();
-  }, []);
+    if (isExpo && expoHost?.apiUrl) {
+      setApiUrl(expoHost.apiUrl);
+    } else {
+      const cargarUrl = async () => {
+        const url = await getApiBaseUrlOrDefault(); // 👈 sin URL_BASE
+        setApiUrl(url);
+      };
+      cargarUrl();
+    }  
+  }, [isExpo, expoHost]);
 
   const validarCampos = () => {
-    if (!usuario.trim() || !password.trim() || !apiUrl.trim()) {
+    if (!usuario.trim() || !password.trim() || (isExpo && !apiUrl.trim())) {
       Alert.alert('Validación', 'Todos los campos son obligatorios');
       return false;
     }
@@ -35,6 +41,7 @@ export default function Login() {
   const verificarCredenciales = () => {
     const userCfg = AUTENTICACION?.user;
     const adminCfg = AUTENTICACION?.admin;
+    console.log('Configuración de autenticación:', AUTENTICACION);
 
     const esUser = userCfg && usuario === userCfg.user && password === userCfg.password;
     const esAdmin = adminCfg && usuario === adminCfg.user && password === adminCfg.password;
@@ -55,15 +62,16 @@ export default function Login() {
     try {
       setLoading(true);
 
-      // Validar y guardar la URL dinámica
-      const validUrl = await setApiBaseUrl(apiUrl);
+      // Guardar la URL dinámica si estamos en Expo
+      if (isExpo) {
+        const validUrl = await setApiBaseUrl(apiUrl);
+        console.log('URL base válida y guardada:', validUrl);
+      }
 
-      console.log('URL base válida y guardada:', validUrl);
+      // Inicializar modelos antes de sincronizar
+      initModelos(['clientes', 'categorias',  'preguntas', 'formas-pago', 'condiciones-pago', 'estados', 'municipios', 'parroquias', 'ciudades']); // 👈 ajusta según tu API
 
-      // Sincronización inicial
-      await syncOnStartup();
 
-      // Navegar según rol
       navigation.reset({ index: 0, routes: [{ name: rol === 'admin' ? 'Admin' : 'Inicio' }] });
 
     } catch (e) {
@@ -72,7 +80,7 @@ export default function Login() {
       setLoading(false);
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.logoContainer}>
@@ -100,15 +108,19 @@ export default function Login() {
           placeholder="Ingrese su contraseña"
         />
 
-        <Text style={styles.label}>URL de la API</Text>
-        <TextInput
-          style={styles.input}
-          value={apiUrl}
-          onChangeText={setApiUrl}
-          autoCapitalize="none"
-          keyboardType="url"
-          placeholder="http://IP:PUERTO/api"
-        />
+        {isExpo && (
+          <>
+            <Text style={styles.label}>URL de la API</Text>
+            <TextInput
+              style={styles.input}
+              value={apiUrl}
+              onChangeText={setApiUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+              placeholder="http://IP:PUERTO/api"
+            />
+          </>
+        )}
 
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}

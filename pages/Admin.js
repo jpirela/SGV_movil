@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
-import { syncOnStartup } from '../utils/syncDataFS';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
 const CLIENTES_PATH = `${DATA_DIR}clientes.json`;

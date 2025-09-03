@@ -1,3 +1,4 @@
+// app.config.js
 export default {
   expo: {
     name: 'Agropecuaria Los Apamates',
@@ -67,20 +68,10 @@ export default {
       ENDPOINTS: [
         'clientes',
         'clientes-categorias',
-        'respuestas',
         'clientes-forma-pago',
-        'clientes-condicion-pago'
+        'clientes-condicion-pago',
+        'respuestas',
       ],
-      AUTENTICACION: {
-        user: {
-          user: 'user',
-          password: '123456'
-        },
-        admin: {
-          user: 'admin',
-          password: 'admin1234'
-        }
-      },
       MODE: 'development'
     }
   }

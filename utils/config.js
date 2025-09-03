@@ -1,3 +1,4 @@
+// utils/config.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'url_base';
@@ -23,7 +24,6 @@ const normalizeUrl = (url) => {
  */
 export const validateApiUrl = async (url) => {
   try {
-    const normalized = normalizeUrl(url);
     const testUrl = `${url}/clientes`;
     const response = await fetch(testUrl, {
       method: 'GET',
@@ -74,3 +74,10 @@ export const getApiBaseUrlOrDefault = async (defaultUrl) => {
 export const clearApiBaseUrl = async () => {
   await AsyncStorage.removeItem(STORAGE_KEY);
 };
+
+let AUTH_CONFIG = {
+  user: { user: "user", password: "123456" },
+  admin: { user: "admin", password: "admin1234" }
+};
+
+export const getAuthConfig = () => AUTH_CONFIG;
