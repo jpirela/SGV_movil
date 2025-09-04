@@ -2,7 +2,10 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
-import SplashScreen from './pages/SplashScreen'; // 👈 añadimos
+// Importar el navigationRef
+import { navigationRef } from './utils/navigationService';
+
+import SplashScreen from './pages/SplashScreen';
 import Inicio from './pages/Inicio';
 import AgregarCliente from './pages/AgregarCliente';
 import MostrarDatos from './pages/MostrarDatos';
@@ -13,10 +16,9 @@ const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName='Splash'
-      >
+    // 👇 Pasamos el ref aquí
+    <NavigationContainer ref={navigationRef}>
+      <Stack.Navigator initialRouteName='Splash'>
         <Stack.Screen 
           name="Splash" 
           component={SplashScreen} 

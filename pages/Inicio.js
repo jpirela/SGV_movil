@@ -12,7 +12,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente, syncOnStartup } from '../utils/syncDataFS'; // ✅ Funciones específicas para clientes locales y sync al iniciar
+import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS'; // ✅ Funciones específicas para clientes locales y sync al iniciar
 
 // Generador de UUID simple y confiable para React Native
 const generateUUID = () => {

@@ -1,3 +1,4 @@
+// pages/AgregarCliente.js
 import { useState, useRef } from 'react';
 import { View, useWindowDimensions, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { TabView, TabBar } from 'react-native-tab-view';

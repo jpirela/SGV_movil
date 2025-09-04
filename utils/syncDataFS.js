@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
+import { navigationRef } from './navigationService';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
 
@@ -307,13 +308,14 @@ const getClienteByIdFromRespuestas = (respuestasData, idLocal) => {
 };
 
 export const syncClientesPendientesFS = async () => {
-  const baseActual = await getBaseUrl();
+  const baseActual = await getApiBaseUrlOrDefault();
   const debug = { inicio: new Date().toISOString(), base: baseActual, clientesProcesados: [] };
 
   const netInfo = await NetInfo.fetch();
   if (!netInfo.isConnected) {
     console.log('📵 Sin conexión. Se omite sincronización de clientes -> API');
-    Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API') 
+    Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API');
+    navigationRef.current?.emit('syncFinished', { success: false, razon: 'sin_conexion' }); // 👈 notifica al Splash
     return { ok: false, razon: 'sin_conexion' };
   }
 
@@ -437,6 +439,10 @@ export const syncClientesPendientesFS = async () => {
   const fallo = debug.clientesProcesados.filter((c) => c.estado === 'fallo').length;
   console.log('Sincronización a API: resumen', { total, ok, parcial, fallo });
   debug.resumen = { total, ok, parcial, fallo };
+
+  // 👇 avisamos al Splash que terminó la sincronización
+  navigationRef.current?.emit('syncFinished', { success: fallo === 0 });
+
   return { ok: true, debug };
 };
 
