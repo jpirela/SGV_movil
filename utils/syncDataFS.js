@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
 import { navigationRef } from './navigationService';
+import eventBus from './eventBus'; // 👈 agregado para emitir eventos
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
 
@@ -30,7 +31,6 @@ const asegurarDataDir = async () => {
     await FileSystem.makeDirectoryAsync(DATA_DIR, { intermediates: true });
   }
 };
-
 
 /**
  * Devuelve el nombre del modelo y su ruta de archivo
