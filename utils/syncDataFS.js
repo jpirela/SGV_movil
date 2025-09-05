@@ -315,7 +315,6 @@ export const syncClientesPendientesFS = async () => {
   if (!netInfo.isConnected) {
     console.log('📵 Sin conexión. Se omite sincronización de clientes -> API');
     Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API');
-    navigationRef.current?.emit('syncFinished', { success: false, razon: 'sin_conexion' }); // 👈 notifica al Splash
     return { ok: false, razon: 'sin_conexion' };
   }
 
@@ -343,6 +342,7 @@ export const syncClientesPendientesFS = async () => {
       const serverId = resCliente.data.idCliente;
       log.idServer = serverId;
 
+      // 🔗 Redes sociales
       const redes = ['facebook', 'instagram', 'tiktok', 'paginaWeb']
         .map((key) => ({ key, usuario: (cliente?.[key] || '').toString().trim() }))
         .filter((x) => x.usuario);
@@ -360,6 +360,7 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlRS, bodyRS, { retries: 1 });
       }
 
+      // 🗂 Categorías
       const respCliente = getClienteByIdFromRespuestas(respuestasData, String(cliente.idCliente));
       const categorias = Array.isArray(respCliente?.categorias) ? respCliente.categorias : [];
       for (const cat of categorias) {
@@ -374,6 +375,7 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlCat, bodyCat, { retries: 1 });
       }
 
+      // ❓ Preguntas y respuestas
       const preguntasRaw = Array.isArray(respCliente?.preguntas) ? respCliente.preguntas : [];
       const preguntas = preguntasRaw.flat ? preguntasRaw.flat() : [].concat(...preguntasRaw);
       if (preguntas.length > 0) {
@@ -389,6 +391,7 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlLote, bodyLote, { retries: 1 });
       }
 
+      // 💳 Formas de pago
       const formasPago = Array.isArray(respCliente?.['forma-pago']) ? respCliente['forma-pago'] : [];
       for (const fp of formasPago) {
         if (fp?.respuesta !== 1 || !fp?.idFormaPago) continue;
@@ -402,6 +405,7 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlFP, bodyFP, { retries: 1 });
       }
 
+      // 📅 Condición de pago
       const condPago = respCliente?.['condicion-pago'];
       if (condPago?.idCondicionPago) {
         const bodyCP = {
@@ -415,12 +419,16 @@ export const syncClientesPendientesFS = async () => {
         await postJson(urlCP, bodyCP, { retries: 1 });
       }
 
+      // ✅ Marcar cliente como sincronizado
       const ahora = new Date().toISOString();
       const idx = clientes.findIndex((c) => String(c.idCliente) === String(cliente.idCliente));
       if (idx >= 0) {
         clientes[idx] = { ...clientes[idx], fechaSincronizacion: ahora };
         await escribirJSON(clientesPath, clientes);
+        // 👇 Avisar a Inicio.js con EventBus
+        eventBus.emit('clientesActualizados');
       }
+
       log.estado = 'ok';
       log.fechaSincronizacion = ahora;
     } catch (e) {
@@ -429,19 +437,7 @@ export const syncClientesPendientesFS = async () => {
       Alert.alert("Error al guardar los datos: ", e.message);
     }
     debug.clientesProcesados.push(log);
-    Alert.alert("Datos guardados exitosamente...");
   }
-
-  debug.fin = new Date().toISOString();
-  const total = debug.clientesProcesados.length;
-  const ok = debug.clientesProcesados.filter((c) => c.estado === 'ok').length;
-  const parcial = debug.clientesProcesados.filter((c) => c.estado === 'parcial').length;
-  const fallo = debug.clientesProcesados.filter((c) => c.estado === 'fallo').length;
-  console.log('Sincronización a API: resumen', { total, ok, parcial, fallo });
-  debug.resumen = { total, ok, parcial, fallo };
-
-  // 👇 avisamos al Splash que terminó la sincronización
-  navigationRef.current?.emit('syncFinished', { success: fallo === 0 });
 
   return { ok: true, debug };
 };

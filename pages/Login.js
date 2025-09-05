@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { syncOnStartup, initModelos } from '../utils/syncDataFS'; // 👈 ajustado
+import { initModelos } from '../utils/syncDataFS'; // 👈 ajustado
 import { setApiBaseUrl, getApiBaseUrlOrDefault, getAuthConfig } from '../utils/config';
 import { useAppEnvironment } from '../hooks/useAppEnvironment'; 
 import { useExpoHostIp } from '../hooks/useExpoHostIp';

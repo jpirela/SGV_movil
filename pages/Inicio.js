@@ -1,5 +1,5 @@
 // pages/Inicio.js
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
-import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS'; // ✅ Funciones específicas para clientes locales y sync al iniciar
+import { useNavigation } from '@react-navigation/native';
+import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS';
+import { syncClientesPendientesFS } from '../utils/syncDataFS';
+import eventBus from '../utils/eventBus'; // ✅ EventBus adaptado
 
-// Generador de UUID simple y confiable para React Native
+// Generador de UUID simple
 const generateUUID = () => {
   return 'row_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 };
@@ -25,13 +26,13 @@ const icons = {
 };
 
 const Inicio = () => {
-  const [selectedRowId, setSelectedRowId] = useState(null); // Estado para fila seleccionada
+  const [selectedRowId, setSelectedRowId] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [searchText, setSearchText] = useState('');
   const navigation = useNavigation();
 
   const cargarClientes = useCallback(async () => {
-    const data = await leerClientesLocales(); // 📱 Solo datos locales, no API
+    const data = await leerClientesLocales();
     setClientes(data);
   }, []);
 
@@ -39,12 +40,16 @@ const Inicio = () => {
     cargarClientes();
   }, [cargarClientes]);
 
-  // Recargar datos cuando la pantalla tome foco (al volver de AgregarCliente)
-  useFocusEffect(
-    useCallback(() => {
-      cargarClientes();
-    }, [cargarClientes])
-  );
+  // 🔄 Escuchar cuando syncClientesPendientesFS actualice los clientes
+  useEffect(() => {
+    const handler = async () => {
+      console.log("🔄 Refrescando lista de clientes desde Inicio.js (eventBus)");
+      await cargarClientes();
+    };
+
+    eventBus.on('clientesActualizados', handler);
+    return () => eventBus.off('clientesActualizados', handler);
+  }, [cargarClientes]);
 
   const filteredClientes = useMemo(() => {
     if (!searchText.trim()) return clientes;
@@ -54,11 +59,20 @@ const Inicio = () => {
   }, [searchText, clientes]);
 
   const handleAgregarCliente = () => {
-    navigation.navigate('AgregarCliente');
+    navigation.navigate('AgregarCliente', {
+      onGuardar: async (nuevoCliente) => {
+        await handleGuardarCliente(nuevoCliente);
+      }
+    });
   };
 
   const handleEditar = (idCliente) => {
-    navigation.navigate('MostrarDatos', { idCliente });
+    navigation.navigate('MostrarDatos', {
+      idCliente,
+      onGuardar: async (clienteEditado) => {
+        await handleGuardarCliente(clienteEditado, idCliente);
+      }
+    });
   };
 
   const handleEliminar = (idCliente) => {
@@ -71,15 +85,10 @@ const Inicio = () => {
           text: 'Sí',
           onPress: async () => {
             try {
-              // 🔄 PASO 1: Eliminar respuestas relacionadas PRIMERO
-              console.log(`🔄 Iniciando eliminación del cliente ${idCliente}...`);
               await eliminarRespuestasCliente(idCliente);
-              
-              // 🔄 PASO 2: Eliminar cliente DESPUÉS
               const nuevosClientes = clientes.filter(cliente => cliente.idCliente !== idCliente);
               setClientes(nuevosClientes);
               await guardarClientesLocales(nuevosClientes);
-              
               console.log(`✅ Cliente ${idCliente} y sus respuestas eliminados correctamente`);
             } catch (error) {
               console.warn('Error al eliminar cliente y respuestas:', error);
@@ -92,6 +101,37 @@ const Inicio = () => {
     );
   };
 
+  // 🔄 Función centralizada para guardar y sincronizar clientes
+  const handleGuardarCliente = async (clienteData, idExistente = null) => {
+    try {
+      let nuevosClientes = [...clientes];
+
+      if (idExistente) {
+        // Editar cliente existente
+        const index = nuevosClientes.findIndex(c => c.idCliente === idExistente);
+        if (index >= 0) nuevosClientes[index] = clienteData;
+      } else {
+        // Agregar cliente nuevo
+        nuevosClientes.push(clienteData);
+      }
+
+      // Guardar localmente
+      await guardarClientesLocales(nuevosClientes);
+      setClientes(nuevosClientes);
+
+      // 🔄 Sincronizar clientes pendientes antes del alert
+      const resultadoSync = await syncClientesPendientesFS();
+      if (!resultadoSync.ok) {
+        console.log('🔄 Sincronización parcial o fallida:', resultadoSync.razon);
+      }
+
+      // Alert de éxito
+      Alert.alert('✅ Datos guardados exitosamente', 'El cliente ha sido registrado y sincronizado correctamente.');
+    } catch (error) {
+      console.warn('Error al guardar cliente:', error);
+      Alert.alert('Error', 'No se pudo guardar el cliente');
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -108,27 +148,27 @@ const Inicio = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Encabezado de tabla */}
+      {/* Encabezado */}
       <View style={styles.headerRow}>
         <Text style={[styles.cell, styles.headerCell, { flex: 1 }]}>Clientes</Text>
         <Text style={[styles.cell, styles.headerCell, { width: '25%' }]}>Acciones</Text>
       </View>
 
-      {/* Lista de clientes */}
+      {/* Lista */}
       <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
         {filteredClientes.map(cliente => {
-          // Generar un identificador único para key
           const uniqueKey = generateUUID();
-          
           return (
             <TouchableOpacity 
-              key={uniqueKey} 
-              id={cliente.idCliente?.toString()} 
+              key={uniqueKey}
+              id={cliente.idCliente?.toString()}
               style={[styles.row, cliente.idCliente === selectedRowId && styles.activeRow]}
               onPress={() => setSelectedRowId(cliente.idCliente)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.cell, { flex: 1 }]}>{cliente.fechaSincronizacion === '' ? '⚠️' : '🌐'} {cliente.nombre}</Text>
+              <Text style={[styles.cell, { flex: 1 }]}>
+                {cliente.fechaSincronizacion === '' ? '⚠️' : '🌐'} {cliente.nombre}
+              </Text>
               <View style={[styles.actionsCell, { width: '25%' }]}>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => handleEditar(cliente.idCliente)}>
                   {icons.verDatos}
@@ -150,94 +190,23 @@ const Inicio = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    alignItems: 'center',
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  addButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f7f7f7',
-    borderBottomWidth: 1,
-    borderColor: '#ddd',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-  },
-  scrollArea: {
-    flex: 1,
-    marginTop: 4,
-  },
-  scrollContent: {
-    paddingBottom: 32,
-  },
-  row: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-  },
-  activeRow: {
-    backgroundColor: '#f0f0f0', // Gris claro para la fila seleccionada
-  },
-  cell: {
-    fontSize: 16,
-  },
-  headerCell: {
-    fontWeight: 'bold',
-  },
-  actionsCell: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionBtn: {
-    backgroundColor: '#e9ecef',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  emptyRow: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-});
-
 export default Inicio;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  searchContainer: { flexDirection: 'row', padding: 10, alignItems: 'center' },
+  searchInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, marginRight: 10 },
+  addButton: { backgroundColor: '#0a84ff', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 8 },
+  addButtonText: { color: '#fff', fontWeight: 'bold' },
+  headerRow: { flexDirection: 'row', padding: 10, backgroundColor: '#f0f0f0' },
+  headerCell: { fontWeight: 'bold' },
+  cell: { fontSize: 16 },
+  row: { flexDirection: 'row', padding: 10, borderBottomWidth: 1, borderColor: '#eee' },
+  activeRow: { backgroundColor: '#d0ebff' },
+  actionsCell: { flexDirection: 'row', justifyContent: 'space-around' },
+  actionBtn: { padding: 5 },
+  scrollArea: { flex: 1 },
+  scrollContent: { paddingBottom: 50 },
+  emptyRow: { padding: 20, alignItems: 'center' },
+  emptyText: { fontStyle: 'italic', color: '#999' },
+});
