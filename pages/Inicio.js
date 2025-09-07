@@ -59,19 +59,12 @@ const Inicio = () => {
   }, [searchText, clientes]);
 
   const handleAgregarCliente = () => {
-    navigation.navigate('AgregarCliente', {
-      onGuardar: async (nuevoCliente) => {
-        await handleGuardarCliente(nuevoCliente);
-      }
-    });
+    navigation.navigate('AgregarCliente'); // 👈 sin params
   };
 
   const handleEditar = (idCliente) => {
     navigation.navigate('MostrarDatos', {
-      idCliente,
-      onGuardar: async (clienteEditado) => {
-        await handleGuardarCliente(clienteEditado, idCliente);
-      }
+      idCliente
     });
   };
 

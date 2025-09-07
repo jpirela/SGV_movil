@@ -1,47 +1,78 @@
-// pages/SplashScreen.js
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import Constants from 'expo-constants';
+import { syncOnStartup } from '../utils/syncDataFS';
+import { getApiBaseUrlOrDefault } from '../utils/config';
 
-export default function SplashScreen({ navigation }) { // 👈 tomamos navigation de props
+export default function SplashScreen({ navigation }) {
   const [status, setStatus] = useState('Iniciando...');
+  const [progress, setProgress] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkConnection = async () => {
       try {
         const netInfo = await NetInfo.fetch();
-
         if (!netInfo.isConnected) {
-          Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API');
           setStatus('Sin conexión');
+          setProgress('');
           setLoading(false);
-          // Redirigir aunque no haya conexión
+          Alert.alert('📵 Sin conexión', 'Se omite sincronización de clientes -> API');
           setTimeout(() => navigation.replace('Login'), 1500);
           return;
         }
 
-        const { URL_BASE } = Constants.expoConfig.extra;
-        const baseUrl = URL_BASE.endsWith('/api') ? URL_BASE.replace(/\/api$/, '') : URL_BASE;
+        // ✅ Trae la URL base desde config.js
+        const baseUrl = (await getApiBaseUrlOrDefault()).replace(/\/api$/, '');
 
-        const response = await fetch(baseUrl);
-        const text = await response.text();
+        // sincronización
+        (async () => {
+          try {
+            await syncOnStartup((msg, count, total) => {
+              setStatus(msg);
+              if (count && total) {
+                setProgress(`${count} / ${total} modelos sincronizados`);
+              } else {
+                setProgress('');
+                setLoading(false);
+              }
+            });
+          } catch (e) {
+            console.log('⚠️ Error en syncOnStartup:', e.message);
+            setLoading(false);
+          }
+        })();
 
-        if (text.includes('Bienvenido')) {
-          setStatus('Conectado');
-        } else {
-          setStatus('Error de conexión');
-        }
+        // sanity check del servidor
+        (async () => {
+          try {
+            const response = await fetch(baseUrl);
+            const text = await response.text();
+            if (text.includes('Bienvenido')) {
+              setStatus('Conectado');
+            } else {
+              setStatus('Error de conexión');
+              setProgress('');
+              setLoading(false);
+              Alert.alert('⚠️ Error de conexión', 'El servidor no respondió como se esperaba.');
+            }
+          } catch (err) {
+            setStatus('Error de conexión');
+            setProgress('');
+            setLoading(false);
+            Alert.alert('⚠️ Error de conexión', 'No se pudo contactar con el servidor.');
+          }
+        })();
 
-        // Esperar un poco y pasar al Login
-        setTimeout(() => navigation.replace('Login'), 1500);
-
+        setTimeout(() => {
+          navigation.replace('Login');
+        }, 2000);
       } catch (error) {
         setStatus('Error de conexión');
-        setTimeout(() => navigation.replace('Login'), 1500);
-      } finally {
+        setProgress('');
         setLoading(false);
+        Alert.alert('⚠️ Error de conexión', 'Ocurrió un problema al verificar la conexión.');
+        setTimeout(() => navigation.replace('Login'), 1500);
       }
     };
 
@@ -53,29 +84,15 @@ export default function SplashScreen({ navigation }) { // 👈 tomamos navigatio
       <Image source={require('../assets/icon.png')} style={styles.logo} />
       {loading && <ActivityIndicator size="large" color="#0000ff" style={styles.spinner} />}
       <Text style={styles.text}>{status}</Text>
+      {progress !== '' && <Text style={styles.progress}>{progress}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 30,
-    resizeMode: 'contain',
-  },
-  spinner: {
-    marginBottom: 20,
-  },
-  text: {
-    fontSize: 18,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  logo: { width: 100, height: 100, marginBottom: 30, resizeMode: 'contain' },
+  spinner: { marginBottom: 20 },
+  text: { fontSize: 18, fontWeight: '500', textAlign: 'center' },
+  progress: { fontSize: 16, marginTop: 5, color: '#555' },
 });

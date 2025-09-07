@@ -3,13 +3,19 @@ import * as FileSystem from 'expo-file-system';
 import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
-import { navigationRef } from './navigationService';
 import eventBus from './eventBus'; // 👈 agregado para emitir eventos
+import Constants from 'expo-constants';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const REMOTE_BASE = "";
+
+// 👇 aquí se resuelve el error
+const DATA_REMOTE_URL = Constants.expoConfig?.extra?.DATA_REMOTE_URL || REMOTE_BASE;
 
 let MODELOS = {};
-let MODELOS_NOMBRES = [];
+let MODELOS_NOMBRES = Constants.expoConfig?.extra?.MODELOS || [];
+
+const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 /**
  * Inicializa las rutas de los modelos
@@ -30,16 +36,6 @@ const asegurarDataDir = async () => {
   if (!dirInfo.exists) {
     await FileSystem.makeDirectoryAsync(DATA_DIR, { intermediates: true });
   }
-};
-
-/**
- * Devuelve el nombre del modelo y su ruta de archivo
- */
-const getModeloPathPairs = () => {
-  return Object.entries(MODELOS).map(([modelo, filePath]) => ({
-    modelo,
-    filePath,
-  }));
 };
 
 // En el dispositivo existe como 'respuestas.json' (minúsculas)
@@ -450,27 +446,66 @@ export const syncOnStartup = async () => {
   }
 };
 
-export const syncModelosFS = async () => {
+export const syncModelosFS = async (onProgress) => {
   await asegurarDataDir();
-  const baseUrl = await getApiBaseUrlOrDefault();
-  if (!baseUrl) {
-    console.warn('⚠️ No hay URL base configurada');
-    return;
-  }
-  for (const modelo of MODELOS_NOMBRES) {
+
+  const modelosTotales = MODELOS_NOMBRES.filter((m) => m !== 'clientes');
+  let contador = 0;
+
+  for (const modelo of modelosTotales) {
+    const localPath = `${DATA_DIR}${modelo}.json`;
+    const metaPath = `${localPath}.meta.json`;
+    const remoteUrl = `${DATA_REMOTE_URL}${modelo}.json`;
+    const remoteMetaUrl = `${DATA_REMOTE_URL}${modelo}.meta.json`;
+
     try {
-      const res = await fetch(`${baseUrl}/${modelo}`, { headers: defaultHeaders() });
-      if (!res.ok) {
-        console.warn(`❌ Error HTTP ${res.status} en modelo ${modelo}`);
-        continue;
+      let remoteMeta = null;
+      try {
+        const metaResp = await fetch(remoteMetaUrl);
+        if (metaResp.ok) remoteMeta = await metaResp.json();
+      } catch (_) {}
+
+      const localInfo = await FileSystem.getInfoAsync(localPath);
+      const metaInfo = await FileSystem.getInfoAsync(metaPath);
+
+      let necesitaActualizar = false;
+      if (!localInfo.exists || !metaInfo.exists) {
+        necesitaActualizar = true;
+      } else if (remoteMeta) {
+        const localMetaRaw = await FileSystem.readAsStringAsync(metaPath);
+        const localMeta = JSON.parse(localMetaRaw);
+        if (
+          localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
+          localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
+        ) {
+          necesitaActualizar = true;
+        }
       }
-      const data = await res.json();
-      await FileSystem.writeAsStringAsync(MODELOS[modelo], JSON.stringify(data, null, 2));
-      console.log(
-        `✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros)`
-      );
+
+      contador++;
+
+      if (necesitaActualizar) {
+        if (onProgress) onProgress(`Actualizando datos de ${modelo}...`, contador, modelosTotales.length);
+        await delay(500);
+
+        const dataResp = await fetch(remoteUrl);
+        if (!dataResp.ok) continue;
+        const data = await dataResp.json();
+        await FileSystem.writeAsStringAsync(localPath, JSON.stringify(data, null, 2));
+
+        if (remoteMeta)
+          await FileSystem.writeAsStringAsync(metaPath, JSON.stringify(remoteMeta, null, 2));
+
+        console.log(`✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros)`);
+      } else {
+        if (onProgress) onProgress(`${modelo} ya actualizado`, contador, modelosTotales.length);
+        console.log(`✔️ ${modelo} ya está actualizado`);
+      }
     } catch (err) {
-      console.warn(`❌ Error sincronizando ${modelo}:`, err.message);
+      console.warn(`❌ Error procesando ${modelo}:`, err.message);
     }
   }
+
+  if (onProgress) onProgress('Iniciando...', null, null);
+
 };

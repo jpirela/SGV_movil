@@ -53,6 +53,7 @@ export default {
         projectId: "6ee94bc9-8491-427d-a049-59410a1b5452"
       },
       URL_BASE: 'https://restcontroller-scpi.onrender.com/api',
+      DATA_REMOTE_URL: "https://sgvcpa-admin.web.app/data/",
       MODELOS: [
         'clientes',
         'redes-sociales',

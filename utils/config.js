@@ -1,7 +1,10 @@
-// utils/config.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 const STORAGE_KEY = 'url_base';
+
+// ⚡ Valor por defecto tomado de app.config.js → extra.URL_BASE
+const DEFAULT_URL_BASE = Constants.expoConfig?.extra?.URL_BASE;
 
 /**
  * Normaliza la URL eliminando barra final y asegurando http/https
@@ -12,15 +15,11 @@ const normalizeUrl = (url) => {
   if (!base.startsWith('http://') && !base.startsWith('https://')) {
     base = 'http://' + base;
   }
-  // eliminar barra final
-  base = base.replace(/\/$/, '');
-  return base;
+  return base.replace(/\/$/, ''); // eliminar barra final
 };
 
 /**
  * Verifica si la URL es válida probando un endpoint real (/clientes)
- * @param {string} url - Dirección base de la API (puede incluir /api al final)
- * @returns {Promise<boolean>}
  */
 export const validateApiUrl = async (url) => {
   try {
@@ -30,21 +29,21 @@ export const validateApiUrl = async (url) => {
       headers: { Accept: 'application/json' },
     });
     return response.ok;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
 
 /**
  * Guarda la URL base de la API después de validarla
- * @param {string} url - Dirección base de la API
- * @returns {Promise<string>} - Retorna la URL normalizada y válida
  */
 export const setApiBaseUrl = async (url) => {
   const normalized = normalizeUrl(url);
   const isValid = await validateApiUrl(normalized);
   if (!isValid) {
-    throw new Error(`No se pudo validar la URL de la API. Verifica que el servidor esté activo: ${normalized}`);
+    throw new Error(
+      `No se pudo validar la URL de la API. Verifica que el servidor esté activo: ${normalized}`
+    );
   }
   await AsyncStorage.setItem(STORAGE_KEY, normalized);
   return normalized;
@@ -52,20 +51,17 @@ export const setApiBaseUrl = async (url) => {
 
 /**
  * Obtiene la URL base de la API desde almacenamiento
- * @returns {Promise<string|null>}
  */
 export const getApiBaseUrl = async () => {
   return await AsyncStorage.getItem(STORAGE_KEY);
 };
 
 /**
- * Devuelve la URL base o un valor por defecto si no existe
- * @param {string} defaultUrl - URL que se usará si no hay nada guardado
- * @returns {Promise<string>}
+ * Devuelve la URL base o un valor por defecto (de app.config.js)
  */
-export const getApiBaseUrlOrDefault = async (defaultUrl) => {
+export const getApiBaseUrlOrDefault = async () => {
   const url = await AsyncStorage.getItem(STORAGE_KEY);
-  return url || normalizeUrl(defaultUrl);
+  return url || normalizeUrl(DEFAULT_URL_BASE);
 };
 
 /**
@@ -75,6 +71,7 @@ export const clearApiBaseUrl = async () => {
   await AsyncStorage.removeItem(STORAGE_KEY);
 };
 
+// Configuración de usuarios locales
 let AUTH_CONFIG = {
   user: { user: "user", password: "123456" },
   admin: { user: "admin", password: "admin1234" }
