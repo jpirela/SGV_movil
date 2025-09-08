@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 const STORAGE_KEY = 'url_base';
 
 // ⚡ Valor por defecto tomado de app.config.js → extra.URL_BASE
-const DEFAULT_URL_BASE = Constants.expoConfig?.extra?.URL_BASE;
+ export const DEFAULT_URL_BASE = Constants.expoConfig?.extra?.URL_BASE;
 
 /**
  * Normaliza la URL eliminando barra final y asegurando http/https

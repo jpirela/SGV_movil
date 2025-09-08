@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { syncOnStartup } from '../utils/syncDataFS';
-import { getApiBaseUrlOrDefault } from '../utils/config';
+import { getApiBaseUrlOrDefault, DEFAULT_URL_BASE} from '../utils/config';
 
 export default function SplashScreen({ navigation }) {
   const [status, setStatus] = useState('Iniciando...');
@@ -44,26 +44,29 @@ export default function SplashScreen({ navigation }) {
         })();
 
         // sanity check del servidor
-        (async () => {
-          try {
-            const response = await fetch(baseUrl);
-            const text = await response.text();
-            if (text.includes('Bienvenido')) {
-              setStatus('Conectado');
-            } else {
+        if (DEFAULT_URL_BASE === baseUrl) {
+          (async () => {
+            try {
+              const response = await fetch(baseUrl);
+              const text = await response.text();
+              if (text.includes('Bienvenido')) {
+                setStatus('Conectado');
+              } else {
+                setStatus('Error de conexión');
+                setProgress('');
+                setLoading(false);
+                Alert.alert('⚠️ Error de conexión', 'El servidor no respondió como se esperaba.');
+              }
+            } catch (err) {
               setStatus('Error de conexión');
               setProgress('');
               setLoading(false);
-              Alert.alert('⚠️ Error de conexión', 'El servidor no respondió como se esperaba.');
+              Alert.alert('⚠️ Error de conexión', 'No se pudo contactar con el servidor.');
             }
-          } catch (err) {
-            setStatus('Error de conexión');
-            setProgress('');
-            setLoading(false);
-            Alert.alert('⚠️ Error de conexión', 'No se pudo contactar con el servidor.');
-          }
-        })();
-
+          })();
+        } else {
+          setStatus('Conectado');
+        }
         setTimeout(() => {
           navigation.replace('Login');
         }, 2000);

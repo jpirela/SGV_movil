@@ -6,11 +6,9 @@ import {
   Platform,
   View,
   ActivityIndicator,
-  Text,
-  TouchableOpacity,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 
 import StaticText from '../components/Input/StaticText';
 import Divider from '../components/Input/Divider';
@@ -22,7 +20,7 @@ import * as FileSystem from 'expo-file-system';
 const leerRespuestasDirecto = async () => {
   try {
     const DATA_DIR = FileSystem.documentDirectory + 'data/';
-    const RESPUESTAS_PATH = `${DATA_DIR}Respuestas.json`;
+    const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
     
     const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
     if (!respuestasInfo.exists) {
@@ -43,7 +41,6 @@ const leerRespuestasDirecto = async () => {
 
 export default function MostrarDatos() {
   const route = useRoute();
-  const navigation = useNavigation();
   const { idCliente } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -118,9 +115,9 @@ export default function MostrarDatos() {
         
         setClienteData(cliente);
 
-        const respuestas = respuestasCompletas || {};
-        const respuestasCliente = respuestas[idCliente];
-        setRespuestasData(respuestasCliente);
+        const respuestas = respuestasCompletas[idCliente] || {};
+        setRespuestasData(respuestas);
+        console.log(respuestasCompletas);
 
         setLoading(false);
       } catch (error) {

@@ -6,7 +6,6 @@ import {
   Platform,
   View,
   TouchableOpacity,
-  Text,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';

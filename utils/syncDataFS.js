@@ -68,7 +68,7 @@ export const guardarRespuestas = async (idCliente, respuestas) => {
  */
 export const leerModeloFS = async (modelo) => {
   const filePath = MODELOS[modelo];
-
+  console.log(filePath);
   if (!filePath) {
     console.warn(`❌ Modelo '${modelo}' no está configurado en MODELOS`);
     return [];

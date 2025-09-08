@@ -14,6 +14,14 @@ import { useNavigation } from '@react-navigation/native';
 import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS';
 import { syncClientesPendientesFS } from '../utils/syncDataFS';
 import eventBus from '../utils/eventBus'; // ✅ EventBus adaptado
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import JSZip from 'jszip';
+
+const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const CLIENTES_PATH = `${DATA_DIR}clientes.json`;
+const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
+const ZIP_PATH = `${DATA_DIR}datos_exportados.zip`;
 
 // Generador de UUID simple
 const generateUUID = () => {
@@ -23,6 +31,9 @@ const generateUUID = () => {
 const icons = {
   verDatos: <MaterialCommunityIcons name="eye-outline" size={24} color="gray" />,
   eliminar: <MaterialCommunityIcons name="account-remove-outline" size={24} color="gray" />,
+  agregar: <MaterialCommunityIcons name="account-plus-outline" size={24} color="gray" />,
+  descargar: <MaterialCommunityIcons name="download" size={24} color="gray" />,
+  salir: <MaterialCommunityIcons name="logout" size={24} color="gray" />,
 };
 
 const Inicio = () => {
@@ -136,8 +147,72 @@ const Inicio = () => {
           value={searchText}
           onChangeText={setSearchText}
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleAgregarCliente}>
-          <Text style={styles.addButtonText}>Agregar</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={handleAgregarCliente}>
+          {icons.agregar}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={async () => {
+            try {
+              // Leer archivos actuales
+              const [clientesContent, respuestasContent] = await Promise.all([
+                FileSystem.readAsStringAsync(CLIENTES_PATH),
+                FileSystem.readAsStringAsync(RESPUESTAS_PATH),
+              ]);
+
+              // Crear zip en memoria
+              const zip = new JSZip();
+              zip.file('Clientes.json', clientesContent);
+              zip.file('Respuestas.json', respuestasContent);
+
+              // Generar blob base64
+              const zipContent = await zip.generateAsync({ type: 'base64' });
+
+              // Guardar el zip en el sandbox
+              await FileSystem.writeAsStringAsync(ZIP_PATH, zipContent, {
+                encoding: FileSystem.EncodingType.Base64,
+              });
+
+              // Compartir el zip
+              await Sharing.shareAsync(ZIP_PATH);
+
+              Alert.alert('Éxito', 'Se generó el archivo ZIP con los datos');
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo exportar el ZIP');
+              console.warn('Error al generar ZIP:', error);
+            }
+          }}
+        >
+          {icons.descargar}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => {
+            Alert.alert(
+              'Salir',
+              '¿Desea salir del sistema?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Salir',
+                  style: 'destructive',
+                  onPress: () => {
+                    // Cerrar la app (en Expo no es posible cerrar la app, así que se puede navegar al login o pantalla inicial)
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'Login' }],
+                    });
+                  },
+                },
+              ],
+              { cancelable: true }
+            );
+          }}
+        >
+          <Text style={styles.addButtonText}>
+            {icons.salir}
+          </Text>
         </TouchableOpacity>
       </View>
 
