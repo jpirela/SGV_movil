@@ -8,6 +8,8 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -40,6 +42,7 @@ const Inicio = () => {
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [clientes, setClientes] = useState([]);
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
 
   const cargarClientes = useCallback(async () => {
@@ -107,6 +110,7 @@ const Inicio = () => {
 
   // 🔄 Función centralizada para guardar y sincronizar clientes
   const handleGuardarCliente = async (clienteData, idExistente = null) => {
+    setLoading(true);
     try {
       let nuevosClientes = [...clientes];
 
@@ -129,9 +133,11 @@ const Inicio = () => {
         console.log('🔄 Sincronización parcial o fallida:', resultadoSync.razon);
       }
 
+      setLoading(false);
       // Alert de éxito
       Alert.alert('✅ Datos guardados exitosamente', 'El cliente ha sido registrado y sincronizado correctamente.');
     } catch (error) {
+      setLoading(false);
       console.warn('Error al guardar cliente:', error);
       Alert.alert('Error', 'No se pudo guardar el cliente');
     }
@@ -139,6 +145,17 @@ const Inicio = () => {
 
   return (
     <View style={styles.container}>
+      <Modal
+        transparent={true}
+        animationType={'none'}
+        visible={loading}
+        onRequestClose={() => {}}>
+        <View style={styles.modalBackground}>
+          <View style={styles.activityIndicatorWrapper}>
+            <ActivityIndicator animating={loading} size="large" />
+          </View>
+        </View>
+      </Modal>
       {/* Buscador y botón */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -277,4 +294,20 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 50 },
   emptyRow: { padding: 20, alignItems: 'center' },
   emptyText: { fontStyle: 'italic', color: '#999' },
+  modalBackground: {
+    flex: 1,
+    alignItems: 'center',
+    flexDirection: 'column',
+    justifyContent: 'space-around',
+    backgroundColor: '#00000040'
+  },
+  activityIndicatorWrapper: {
+    backgroundColor: '#FFFFFF',
+    height: 100,
+    width: 100,
+    borderRadius: 10,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-around'
+  }
 });

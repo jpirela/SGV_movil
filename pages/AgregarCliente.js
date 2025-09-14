@@ -149,7 +149,7 @@ export default function AgregarCliente() {
       console.log('✅ Respuestas guardadas correctamente');
       console.log('🔚 === FIN DEBUG: PROCESO DE GUARDADO ===\n');
 
-      syncClientesPendientesFS();
+      navigation.navigate('Inicio', { handleGuardarCliente: true });
 
       navigation.goBack();
     } catch (error) {
