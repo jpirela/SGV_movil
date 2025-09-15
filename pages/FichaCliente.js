@@ -61,6 +61,10 @@ const Cliente = forwardRef((props, ref) => {
 
   const [camposConError, setCamposConError] = useState({});
 
+  // Estados para inputs dinámicos de redes sociales
+  const [redesSocialesActivas, setRedesSocialesActivas] = useState([]);
+  const [redesSocialesSeleccionada, setRedesSocialesSeleccionada] = useState('');
+
   // *** Definimos ref para inputs ***
   const fieldRefs = useRef({});
 
@@ -256,6 +260,64 @@ const Cliente = forwardRef((props, ref) => {
     updateFormValue('ubicacionMap', googleMapsUrl);
   };
 
+  // Función para agregar un nuevo input de red social
+  const agregarRedSocial = () => {
+    // Verificar que se ha seleccionado una opción válida
+    if (!redesSocialesSeleccionada) return;
+    
+    // Verificar que no exista ya en la lista de activas
+    if (!redesSocialesActivas.includes(redesSocialesSeleccionada)) {
+      setRedesSocialesActivas(prev => [...prev, redesSocialesSeleccionada]);
+      // Limpiar la selección para permitir seleccionar otra opción
+      setRedesSocialesSeleccionada('');
+    }
+  };
+  
+  // Función para eliminar un input de red social
+  const eliminarRedSocial = (redSocial) => {
+    setRedesSocialesActivas(prev => prev.filter(item => item !== redSocial));
+    // Limpiar el valor del objeto para esa red social
+    updateFormValue(redSocial, '');
+  };
+  
+  // Función para manejar el cambio de la opción seleccionada
+  const handleRedSocialSeleccionada = (value) => {
+    setRedesSocialesSeleccionada(value);
+  };
+  
+  // Función para obtener el placeholder basado en el tipo de red social
+  const getPlaceholderForRedSocial = (redSocial) => {
+    const placeholders = {
+      facebook: 'Facebook',
+      instagram: 'Instagram',
+      tiktok: 'TikTok',
+      paginaWeb: 'Pagina Web'
+    };
+    return placeholders[redSocial] || redSocial;
+  };
+  
+  // Función para renderizar los inputs de redes sociales activos
+  const renderInputsRedesSociales = () => {
+    return redesSocialesActivas.map((redSocial) => (
+      <View key={redSocial} style={styles.inputWithDeleteContainer}>
+        <View style={styles.inputContainer}>
+          <InputText
+            id={redSocial}
+            value={object[redSocial]}
+            placeholder={getPlaceholderForRedSocial(redSocial)}
+            onChange={updateFormValue}
+          />
+        </View>
+        <TouchableOpacity 
+          style={styles.deleteButton} 
+          onPress={() => eliminarRedSocial(redSocial)}
+        >
+          <MaterialCommunityIcons name="close" size={20} color="#dc3545" />
+        </TouchableOpacity>
+      </View>
+    ));
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -408,10 +470,34 @@ const Cliente = forwardRef((props, ref) => {
             enabled={true}
           />
           <InputText id="tipoComercio" value={object.tipoComercio} placeholder="Tipo de comercio" onChange={updateFormValue} />
-          <InputText id="facebook" value={object.facebook} placeholder="Facebook" onChange={updateFormValue} />
-          <InputText id="instagram" value={object.instagram} placeholder="Instagram" onChange={updateFormValue} />
-          <InputText id="tiktok" value={object.tiktok} placeholder="Tiktok" onChange={updateFormValue} />
-          <InputText id="paginaWeb" value={object.paginaWeb} placeholder="Página web" onChange={updateFormValue} />
+          
+          {/* Selector de Redes Sociales con botón agregar */}
+          <View style={styles.socialMediaContainer}>
+            <View style={styles.selectBoxContainer}>
+              <SelectBox
+                id="redSocialSelector"
+                value={redesSocialesSeleccionada}
+                labelTitle="Agregar Red Social"
+                onChange={(id, value) => handleRedSocialSeleccionada(value)}
+                options={[
+                  { id: 'facebook', realId: 'facebook', nombre: 'Facebook' },
+                  { id: 'instagram', realId: 'instagram', nombre: 'Instagram' },
+                  { id: 'tiktok', realId: 'tiktok', nombre: 'TikTok' },
+                  { id: 'paginaWeb', realId: 'paginaWeb', nombre: 'Pagina Web' },
+                ].filter(option => !redesSocialesActivas.includes(option.realId))}
+                enabled={true}
+              />
+            </View>
+            <TouchableOpacity 
+              style={styles.addButton} 
+              onPress={agregarRedSocial}
+            >
+              <MaterialCommunityIcons name="plus" size={24} color="#007bff" />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Renderizar inputs dinámicos de redes sociales */}
+          {renderInputsRedesSociales()}
 
           <SelectBox
             id="estado"
@@ -510,6 +596,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 44,
     height: 44,
+  },
+  socialMediaContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 15,
+  },
+  selectBoxContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  addButton: {
+    backgroundColor: '#e7f3ff',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 44,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#007bff',
+    marginBottom: 15,
+  },
+  inputWithDeleteContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#f8d7da',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 44,
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#dc3545',
   },
 });
 

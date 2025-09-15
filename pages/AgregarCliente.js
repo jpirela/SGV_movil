@@ -168,9 +168,12 @@ export default function AgregarCliente() {
         activeColor="#007bff"
         inactiveColor="#666"
       />
-      <TouchableOpacity style={styles.saveButton} onPress={handleGuardar}>
-        <Text style={styles.saveButtonText}>Guardar</Text>
-      </TouchableOpacity>
+      {/* Mostrar botón Guardar solo en la pestaña "Ficha Huevos" (index 1) */}
+      {index === 1 && (
+        <TouchableOpacity style={styles.saveButton} onPress={handleGuardar}>
+          <Text style={styles.saveButtonText}>Guardar</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
