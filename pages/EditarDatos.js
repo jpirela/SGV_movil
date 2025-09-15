@@ -7,7 +7,7 @@ import FichaHuevos from './FichaHuevos';
 import { useNavigation } from '@react-navigation/native';
 import { guardarNuevoCliente, guardarRespuestas, syncClientesPendientesFS } from '../utils/syncDataFS';
 
-export default function AgregarCliente() {
+export default function EditarDatos() {
   const layout = useWindowDimensions();
   const navigation = useNavigation();
   const [index, setIndex] = useState(0);
@@ -149,8 +149,9 @@ export default function AgregarCliente() {
       console.log('✅ Respuestas guardadas correctamente');
       console.log('🔚 === FIN DEBUG: PROCESO DE GUARDADO ===\n');
 
-      // Navegar solo a Inicio, sin goBack() duplicado
       navigation.navigate('Inicio', { handleGuardarCliente: true });
+
+      navigation.goBack();
     } catch (error) {
       console.error('Error al guardar:', error);
       Alert.alert("Error al guardar los datos");

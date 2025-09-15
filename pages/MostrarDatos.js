@@ -16,7 +16,6 @@ import Divider from '../components/Input/Divider';
 import { leerClientesLocales } from '../utils/syncDataFS';
 import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
 import * as FileSystem from 'expo-file-system/legacy';
-import { File, Directory, Paths } from 'expo-file-system';
 
 // Función para leer respuestas.json directamente
 const leerRespuestasDirecto = async () => {

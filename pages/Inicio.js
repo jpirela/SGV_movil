@@ -38,6 +38,7 @@ const icons = {
   agregar: <MaterialCommunityIcons name="account-plus-outline" size={24} color="gray" />,
   descargar: <MaterialCommunityIcons name="download" size={24} color="gray" />,
   salir: <MaterialCommunityIcons name="logout" size={24} color="gray" />,
+  editar: <MaterialCommunityIcons name="account-edit-outline" size={24} color="gray" />,
 };
 
 const Inicio = () => {
@@ -78,8 +79,14 @@ const Inicio = () => {
     navigation.navigate('AgregarCliente'); // 👈 sin params
   };
 
-  const handleEditar = (idCliente) => {
+  const handleVer = (idCliente) => {
     navigation.navigate('MostrarDatos', {
+      idCliente
+    });
+  };
+
+  const handleEditar = (idCliente) => {
+    navigation.navigate('EditarDatos', {
       idCliente
     });
   };
@@ -257,8 +264,11 @@ const Inicio = () => {
                 {cliente.fechaSincronizacion === '' ? '⚠️' : '🌐'} {cliente.nombre}
               </Text>
               <View style={[styles.actionsCell, { width: '25%' }]}>
-                <TouchableOpacity style={styles.actionBtn} onPress={() => handleEditar(cliente.idCliente)}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => handleVer(cliente.idCliente)}>
                   {icons.verDatos}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => handleEditar(cliente.idCliente)}>
+                  {icons.editar}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionBtn} onPress={() => handleEliminar(cliente.idCliente)}>
                   {icons.eliminar}
