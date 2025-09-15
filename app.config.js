@@ -48,6 +48,10 @@ export default {
       favicon: "./assets/favicon.png"
     },
 
+    plugins: [
+      "expo-font"
+    ],
+
     extra: {
       eas: {
         projectId: "6ee94bc9-8491-427d-a049-59410a1b5452"

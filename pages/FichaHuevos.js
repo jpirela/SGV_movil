@@ -14,7 +14,7 @@ import InputText from '../components/Input/InputText';
 import SelectBox from '../components/Input/SelectBox';
 import Divider from '../components/Input/Divider';
 
-import { leerModeloFS } from '../utils/syncDataFS';
+import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
 
 const FichaHuevos = forwardRef((props, ref) => {
   const [categoriasTransformadas, setCategoriasTransformadas] = useState([]);
@@ -98,23 +98,13 @@ const FichaHuevos = forwardRef((props, ref) => {
   }));
 
   useEffect(() => {
-    const cargarModelos = async () => {
-      const [
-        preguntasData,
-        categoriasData,
-        formaPagoData,
-        condicionPagoData,
-      ] = await Promise.all([
-        leerModeloFS('preguntas'),
-        leerModeloFS('categorias'),
-        leerModeloFS('formas-pago'),
-        leerModeloFS('condiciones-pago'),
-      ]);
-
-      const categorias = Array.isArray(categoriasData) ? categoriasData : (categoriasData?.rows ?? []);
-      const preguntas = Array.isArray(preguntasData) ? preguntasData : (preguntasData?.rows ?? []);
-      const formasPago = Array.isArray(formaPagoData) ? formaPagoData : (formaPagoData?.rows ?? []);
-      const condicionesPago = Array.isArray(condicionPagoData) ? condicionPagoData : (condicionPagoData?.rows ?? []);
+    const cargarModelos = () => {
+      const cache = getMasterData();
+      
+      const categorias = cache.categorias || [];
+      const preguntas = cache.preguntas || [];
+      const formasPago = cache.formasPago || [];
+      const condicionesPago = cache.condicionesPago || [];
 
       const catTransformadas = categorias
         .filter(c => c && c.idCategoria != null)
@@ -212,7 +202,16 @@ const FichaHuevos = forwardRef((props, ref) => {
       setLoading(false);
     };
 
-    cargarModelos();
+    if (isDataLoaded()) {
+      // Si los datos ya están cargados, usarlos inmediatamente
+      cargarModelos();
+    } else {
+      // Si no, esperar a que se carguen
+      const unsubscribe = onDataReady(() => {
+        cargarModelos();
+      });
+      return unsubscribe;
+    }
   }, []);
 
   const filtrarPreguntasProveedores = (pregs) => {

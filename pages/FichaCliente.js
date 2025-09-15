@@ -14,8 +14,9 @@ import * as Location from 'expo-location';
 import InputText from '../components/Input/InputText';
 import TextArea from '../components/Input/TextArea';
 import SelectBox from '../components/Input/SelectBox';
+import RifInput from '../components/Input/RifInput';
 
-import { leerModeloFS } from '../utils/syncDataFS';
+import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
 
 const Cliente = forwardRef((props, ref) => {
   const INITIAL_OBJECT = {
@@ -102,17 +103,16 @@ const Cliente = forwardRef((props, ref) => {
   }));
 
   useEffect(() => {
-    const cargarDatos = async () => {
-      const [dataEstados, , dataCiudades] = await Promise.all([
-        leerModeloFS('estados'),
-        null,
-        leerModeloFS('ciudades'),
-      ]);
+    const cargarDatos = () => {
+      const cache = getMasterData();
       
-      setModeloEstados(dataEstados || []);
-      setModeloCiudades(dataCiudades || []);
+      const dataEstados = cache.estados || [];
+      const dataCiudades = cache.ciudades || [];
       
-      const estadosSimplificados = (dataEstados || []).map(estado => ({
+      setModeloEstados(dataEstados);
+      setModeloCiudades(dataCiudades);
+      
+      const estadosSimplificados = dataEstados.map(estado => ({
         idEstado: estado.idEstado,
         nombre: estado.nombre
       }));
@@ -123,7 +123,14 @@ const Cliente = forwardRef((props, ref) => {
       setParroquias([]);
     };
 
-    cargarDatos();
+    if (isDataLoaded()) {
+      cargarDatos();
+    } else {
+      const unsubscribe = onDataReady(() => {
+        cargarDatos();
+      });
+      return unsubscribe;
+    }
   }, []);
 
   const updateFormValue = (id, value) => {
@@ -284,14 +291,12 @@ const Cliente = forwardRef((props, ref) => {
             }}
             hasError={camposConError.razonSocial}
           />
-          <InputText
+          <RifInput
             ref={el => fieldRefs.current['rif'] = el}
             id="rif"
             value={object.rif}
-            placeholder="RIF o CI"
             onChange={(id, value) => {
               updateFormValue(id, value);
-              if(fieldRefs.current[id]?.focus) fieldRefs.current[id].focus();
             }}
             hasError={camposConError.rif}
           />

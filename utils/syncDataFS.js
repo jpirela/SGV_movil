@@ -1,5 +1,6 @@
 // utils/syncDataFS.js
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File, Directory, Paths } from 'expo-file-system';
 import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
@@ -7,6 +8,7 @@ import eventBus from './eventBus'; // 👈 agregado para emitir eventos
 import Constants from 'expo-constants';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const DATA_DIRECTORY = new Directory(Paths.document, 'data');
 const REMOTE_BASE = "";
 
 // 👇 aquí se resuelve el error
@@ -32,9 +34,8 @@ export const initModelos = (modelos) => {
  * Asegura que el directorio de datos exista
  */
 const asegurarDataDir = async () => {
-  const dirInfo = await FileSystem.getInfoAsync(DATA_DIR);
-  if (!dirInfo.exists) {
-    await FileSystem.makeDirectoryAsync(DATA_DIR, { intermediates: true });
+  if (!DATA_DIRECTORY.exists) {
+    DATA_DIRECTORY.create();
   }
 };
 
@@ -47,11 +48,13 @@ const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
 export const guardarRespuestas = async (idCliente, respuestas) => {
   try {
     await asegurarDataDir();
-    const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
     let respuestasData = {};
+    const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
     if (respuestasInfo.exists) {
       const contenido = await FileSystem.readAsStringAsync(RESPUESTAS_PATH);
-      respuestasData = JSON.parse(contenido);
+      if (contenido && contenido.trim()) {
+        respuestasData = JSON.parse(contenido);
+      }
     }
     respuestasData[idCliente] = respuestas;
     const json = JSON.stringify(respuestasData, null, 2);
@@ -75,8 +78,9 @@ export const leerModeloFS = async (modelo) => {
   }
 
   try {
-    const archivoExiste = await FileSystem.getInfoAsync(filePath);
-    if (!archivoExiste.exists) {
+    // Usar la API legacy para leer archivos por compatibilidad
+    const archivoInfo = await FileSystem.getInfoAsync(filePath);
+    if (!archivoInfo.exists) {
       console.warn(`📄 Archivo ${modelo}.json no encontrado en: ${filePath}`);
       return [];
     }
@@ -172,7 +176,10 @@ export const eliminarRespuestasCliente = async (idCliente) => {
     }
 
     const contenido = await FileSystem.readAsStringAsync(filePath);
-    let respuestasData = JSON.parse(contenido);
+    let respuestasData = {};
+    if (contenido && contenido.trim()) {
+      respuestasData = JSON.parse(contenido);
+    }
 
     if (respuestasData[idCliente]) {
       delete respuestasData[idCliente];
@@ -275,6 +282,7 @@ const postJson = async (url, body, { retries = 1, retryDelayMs = 600 } = {}) => 
 
 const leerJSON = async (path, fallback = {}) => {
   try {
+    // Usar legacy API para mantener compatibilidad con paths existentes
     const info = await FileSystem.getInfoAsync(path);
     if (!info.exists) return fallback;
     const content = await FileSystem.readAsStringAsync(path);
@@ -289,6 +297,7 @@ const leerJSON = async (path, fallback = {}) => {
 const escribirJSON = async (path, data) => {
   await asegurarDataDir();
   const json = JSON.stringify(data, null, 2);
+  // Usar legacy API para mantener compatibilidad con paths existentes
   await FileSystem.writeAsStringAsync(path, json, {
     encoding: FileSystem.EncodingType.UTF8,
   });
@@ -438,11 +447,24 @@ export const syncClientesPendientesFS = async () => {
   return { ok: true, debug };
 };
 
-export const syncOnStartup = async () => {
+export const syncOnStartup = async (onProgress) => {
   try {
-    await syncModelosFS();
+    console.log('🔄 Sincronizando archivos maestros desde el servidor...');
+    
+    // Inicializar modelos si no están configurados
+    if (Object.keys(MODELOS).length === 0) {
+      console.log('🔧 Inicializando rutas de modelos...');
+      initModelos(MODELOS_NOMBRES);
+    }
+    
+    const datosLeidos = await syncModelosFS(onProgress);
+    console.log('✅ Sincronización de archivos maestros completada');
+    
+    // 👈 Devolver datos ya leídos
+    return datosLeidos;
   } catch (e) {
     console.warn('❌ Error en syncOnStartup:', e.message);
+    throw e;
   }
 };
 
@@ -450,6 +472,7 @@ export const syncModelosFS = async (onProgress) => {
   await asegurarDataDir();
 
   const modelosTotales = MODELOS_NOMBRES.filter((m) => m !== 'clientes');
+  const datosLeidos = {}; // 👈 Cache para almacenar datos ya leídos
   let contador = 0;
 
   for (const modelo of modelosTotales) {
@@ -465,20 +488,26 @@ export const syncModelosFS = async (onProgress) => {
         if (metaResp.ok) remoteMeta = await metaResp.json();
       } catch (_) {}
 
-      const localInfo = await FileSystem.getInfoAsync(localPath);
-      const metaInfo = await FileSystem.getInfoAsync(metaPath);
+      const localFile = new File(DATA_DIRECTORY, `${modelo}.json`);
+      const metaFile = new File(DATA_DIRECTORY, `${modelo}.meta.json`);
+      const localExists = localFile.exists;
+      const metaExists = metaFile.exists;
 
       let necesitaActualizar = false;
-      if (!localInfo.exists || !metaInfo.exists) {
+      if (!localExists || !metaExists) {
         necesitaActualizar = true;
       } else if (remoteMeta) {
-        const localMetaRaw = await FileSystem.readAsStringAsync(metaPath);
-        const localMeta = JSON.parse(localMetaRaw);
-        if (
-          localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
-          localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
-        ) {
+        const localMetaRaw = metaFile.text() || '';
+        if (!localMetaRaw.trim()) {
           necesitaActualizar = true;
+        } else {
+          const localMeta = JSON.parse(localMetaRaw);
+          if (
+            localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
+            localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
+          ) {
+            necesitaActualizar = true;
+          }
         }
       }
 
@@ -491,15 +520,29 @@ export const syncModelosFS = async (onProgress) => {
         const dataResp = await fetch(remoteUrl);
         if (!dataResp.ok) continue;
         const data = await dataResp.json();
-        await FileSystem.writeAsStringAsync(localPath, JSON.stringify(data, null, 2));
+        localFile.write(JSON.stringify(data, null, 2));
 
         if (remoteMeta)
-          await FileSystem.writeAsStringAsync(metaPath, JSON.stringify(remoteMeta, null, 2));
+          metaFile.write(JSON.stringify(remoteMeta, null, 2));
 
-        console.log(`✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros)`);
+        // 👈 Guardar datos ya leídos para evitar segunda lectura
+        datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);
+        console.log(`✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros`);
       } else {
         if (onProgress) onProgress(`${modelo} ya actualizado`, contador, modelosTotales.length);
         console.log(`✔️ ${modelo} ya está actualizado`);
+        
+        // 👈 Leer archivo existente para incluir en cache
+        try {
+          const contenido = await FileSystem.readAsStringAsync(localPath);
+          if (contenido && contenido.trim()) {
+            const data = JSON.parse(contenido);
+            datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);
+          }
+        } catch (err) {
+          console.warn(`⚠️ Error leyendo ${modelo} existente:`, err.message);
+          datosLeidos[modelo] = [];
+        }
       }
     } catch (err) {
       console.warn(`❌ Error procesando ${modelo}:`, err.message);
@@ -507,5 +550,7 @@ export const syncModelosFS = async (onProgress) => {
   }
 
   if (onProgress) onProgress('Iniciando...', null, null);
-
+  
+  // 👈 Devolver datos ya leídos para evitar segunda lectura
+  return datosLeidos;
 };

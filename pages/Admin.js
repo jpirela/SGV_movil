@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File, Directory, Paths } from 'expo-file-system';
 import { useNavigation } from '@react-navigation/native';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const DATA_DIRECTORY = new Directory(Paths.document, 'data');
 const CLIENTES_PATH = `${DATA_DIR}clientes.json`;
 
 export default function Admin() {

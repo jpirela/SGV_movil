@@ -13,8 +13,10 @@ import { useRoute } from '@react-navigation/native';
 import StaticText from '../components/Input/StaticText';
 import Divider from '../components/Input/Divider';
 
-import { leerModeloFS } from '../utils/syncDataFS';
-import * as FileSystem from 'expo-file-system';
+import { leerClientesLocales } from '../utils/syncDataFS';
+import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File, Directory, Paths } from 'expo-file-system';
 
 // Función para leer respuestas.json directamente
 const leerRespuestasDirecto = async () => {
@@ -58,40 +60,22 @@ export default function MostrarDatos() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const [
-          categoriasData,
-          preguntasData,
-          formasPagoData,
-          condicionesPagoData,
-          clientesData,
-          estadosData,
-          municipiosData,
-          parroquiasData,
-          ciudadesData,
-        ] = await Promise.all([
-          leerModeloFS('categorias'),
-          leerModeloFS('preguntas'),
-          leerModeloFS('formas-pago'),
-          leerModeloFS('condiciones-pago'),
-          leerModeloFS('clientes'),
-          leerModeloFS('estados'),
-          leerModeloFS('municipios'),
-          leerModeloFS('parroquias'),
-          leerModeloFS('ciudades'),
-        ]);
+        // Usar cache para datos maestros, solo leer clientes desde archivo
+        const cache = getMasterData();
+        const clientesData = await leerClientesLocales();
         
         // Leer respuestas.json directamente
         const respuestasCompletas = await leerRespuestasDirecto();
 
-        const categorias = Array.isArray(categoriasData) ? categoriasData : categoriasData?.rows ?? [];
-        const preguntas = Array.isArray(preguntasData) ? preguntasData : preguntasData?.rows ?? [];
-        const formasPago = Array.isArray(formasPagoData) ? formasPagoData : formasPagoData?.rows ?? [];
-        const condicionesPago = Array.isArray(condicionesPagoData) ? condicionesPagoData : condicionesPagoData?.rows ?? [];
-        const clientes = Array.isArray(clientesData) ? clientesData : clientesData?.rows ?? [];
-        const estados = Array.isArray(estadosData) ? estadosData : estadosData?.rows ?? [];
-        const municipios = Array.isArray(municipiosData) ? municipiosData : municipiosData?.rows ?? [];
-        const parroquias = Array.isArray(parroquiasData) ? parroquiasData : parroquiasData?.rows ?? [];
-        const ciudades = Array.isArray(ciudadesData) ? ciudadesData : ciudadesData?.rows ?? [];
+        const categorias = cache.categorias || [];
+        const preguntas = cache.preguntas || [];
+        const formasPago = cache.formasPago || [];
+        const condicionesPago = cache.condicionesPago || [];
+        const clientes = Array.isArray(clientesData) ? clientesData : [];
+        const estados = cache.estados || [];
+        const municipios = cache.municipios || [];
+        const parroquias = cache.parroquias || [];
+        const ciudades = cache.ciudades || [];
 
         setCategoriasModelo(categorias);
         setPreguntasModelo(preguntas);
@@ -126,7 +110,14 @@ export default function MostrarDatos() {
       }
     };
 
-    cargarDatos();
+    if (isDataLoaded()) {
+      cargarDatos();
+    } else {
+      const unsubscribe = onDataReady(() => {
+        cargarDatos();
+      });
+      return unsubscribe;
+    }
   }, [idCliente]);
 
   const renderClienteData = () => {

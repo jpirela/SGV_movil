@@ -16,11 +16,13 @@ import { useNavigation } from '@react-navigation/native';
 import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS';
 import { syncClientesPendientesFS } from '../utils/syncDataFS';
 import eventBus from '../utils/eventBus'; // ✅ EventBus adaptado
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { File, Directory, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
 
 const DATA_DIR = FileSystem.documentDirectory + 'data/';
+const DATA_DIRECTORY = new Directory(Paths.document, 'data');
 const CLIENTES_PATH = `${DATA_DIR}clientes.json`;
 const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
 const ZIP_PATH = `${DATA_DIR}datos_exportados.zip`;

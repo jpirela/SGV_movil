@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { syncOnStartup } from '../utils/syncDataFS';
+import { syncOnStartup, leerModeloFS, initModelos } from '../utils/syncDataFS';
 import { getApiBaseUrlOrDefault, DEFAULT_URL_BASE} from '../utils/config';
+import { loadMasterDataFromSync } from '../utils/dataCache';
+import Constants from 'expo-constants';
 
 export default function SplashScreen({ navigation }) {
   const [status, setStatus] = useState('Iniciando...');
@@ -25,28 +27,42 @@ export default function SplashScreen({ navigation }) {
         // ✅ Trae la URL base desde config.js
         const baseUrl = (await getApiBaseUrlOrDefault()).replace(/\/api$/, '');
 
-        // sincronización
+        // sincronización de archivos maestros
         (async () => {
           try {
-            await syncOnStartup((msg, count, total) => {
+            // Inicializar modelos antes de sincronizar
+            setStatus('Inicializando...');
+            const modelosLista = Constants.expoConfig?.extra?.MODELOS || [];
+            console.log('🔧 Inicializando modelos:', modelosLista);
+            initModelos(modelosLista);
+            
+            setStatus('Sincronizando datos maestros...');
+            const datosLeidos = await syncOnStartup((msg, count, total) => {
               setStatus(msg);
               if (count && total) {
                 setProgress(`${count} / ${total} modelos sincronizados`);
-              } else {
-                setProgress('');
-                setLoading(false);
               }
             });
+            
+            // Cargar datos en cache usando los datos ya leídos (OPTIMIZADO)
+            setStatus('Cargando datos en cache...');
+            setProgress('');
+            await loadMasterDataFromSync(datosLeidos);
+            
+            setStatus('Listo');
+            setLoading(false);
           } catch (e) {
             console.log('⚠️ Error en syncOnStartup:', e.message);
+            setStatus('Error en sincronización');
             setLoading(false);
           }
         })();
 
-        // sanity check del servidor
+        // Verificación de conectividad del servidor (usando endpoint sin datos)
         if (DEFAULT_URL_BASE === baseUrl) {
           (async () => {
             try {
+              // Verificar conectividad con endpoint que devuelve 'Bienvenido'
               const response = await fetch(baseUrl);
               const text = await response.text();
               if (text.includes('Bienvenido')) {
