@@ -426,6 +426,20 @@ const Cliente = forwardRef((props, ref) => {
             enabled={estados.length > 0}
             hasError={camposConError.estado}
           />
+          
+          <SelectBox
+            id="ciudad"
+            value={object.ciudad}
+            labelTitle="Ciudad"
+            onChange={updateFormValue}
+            options={ciudades.map((c) => ({
+              id: `ciudad-${c.idCiudad || c.id_ciudad}`,
+              realId: c.idCiudad || c.id_ciudad,
+              nombre: c.nombre,
+            }))}
+            enabled={enabledCiudad}
+            hasError={camposConError.ciudad}
+          />
 
           <SelectBox
             id="municipio"
@@ -453,20 +467,6 @@ const Cliente = forwardRef((props, ref) => {
             }))}
             enabled={enabledParroquia}
             hasError={camposConError.parroquia}
-          />
-
-          <SelectBox
-            id="ciudad"
-            value={object.ciudad}
-            labelTitle="Ciudad"
-            onChange={updateFormValue}
-            options={ciudades.map((c) => ({
-              id: `ciudad-${c.idCiudad || c.id_ciudad}`,
-              realId: c.idCiudad || c.id_ciudad,
-              nombre: c.nombre,
-            }))}
-            enabled={enabledCiudad}
-            hasError={camposConError.ciudad}
           />
 
           <StatusBar style="auto" />
