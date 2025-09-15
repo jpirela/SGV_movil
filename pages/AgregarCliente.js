@@ -5,7 +5,7 @@ import { TabView, TabBar } from 'react-native-tab-view';
 import FichaCliente from './FichaCliente';
 import FichaHuevos from './FichaHuevos';
 import { useNavigation } from '@react-navigation/native';
-import { guardarNuevoCliente, guardarRespuestas, syncClientesPendientesFS } from '../utils/syncDataFS';
+import { guardarNuevoCliente, guardarRespuestas, syncClientesPendientesFS } from '../utils/syncDataUniversal';
 
 export default function AgregarCliente() {
   const layout = useWindowDimensions();

@@ -1,17 +1,12 @@
-// utils/syncDataFS.js
-import * as FileSystem from 'expo-file-system/legacy';
-import { File, Directory, Paths } from 'expo-file-system';
+// utils/syncDataUniversal.js - Versión universal compatible con web y móvil
 import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
-import eventBus from './eventBus'; // 👈 agregado para emitir eventos
+import eventBus from './eventBus';
 import Constants from 'expo-constants';
+import { storage, platformInfo } from './storage';
 
-const DATA_DIR = FileSystem.documentDirectory + 'data/';
-const DATA_DIRECTORY = new Directory(Paths.document, 'data');
 const REMOTE_BASE = "";
-
-// 👇 aquí se resuelve el error
 const DATA_REMOTE_URL = Constants.expoConfig?.extra?.DATA_REMOTE_URL || REMOTE_BASE;
 
 let MODELOS = {};
@@ -26,53 +21,30 @@ export const initModelos = (modelos) => {
   MODELOS_NOMBRES = modelos;
   MODELOS = {};
   modelos.forEach((modelo) => {
-    MODELOS[modelo] = `${DATA_DIR}${modelo}.json`;
+    MODELOS[modelo] = `${modelo}.json`;
   });
 };
 
 /**
- * Asegura que el directorio de datos exista
- */
-const asegurarDataDir = async () => {
-  if (!DATA_DIRECTORY.exists) {
-    DATA_DIRECTORY.create();
-  }
-};
-
-// En el dispositivo existe como 'respuestas.json' (minúsculas)
-const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
-
-/**
- * Guarda respuestas en respuestas.json
+ * Guarda respuestas en respuestas.json (versión universal)
  */
 export const guardarRespuestas = async (idCliente, respuestas) => {
   try {
-    await asegurarDataDir();
-    let respuestasData = {};
-    const respuestasInfo = await FileSystem.getInfoAsync(RESPUESTAS_PATH);
-    if (respuestasInfo.exists) {
-      const contenido = await FileSystem.readAsStringAsync(RESPUESTAS_PATH);
-      if (contenido && contenido.trim()) {
-        const parsed = JSON.parse(contenido);
-        // Si el archivo existe pero es un array (formato incorrecto), convertir a objeto
-        if (Array.isArray(parsed)) {
-          console.warn('⚠️ Respuestas.json tiene formato de array, convirtiendo a objeto');
-          respuestasData = {};
-        } else {
-          respuestasData = parsed || {};
-        }
-      }
+    console.log(`💾 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Guardando respuestas para cliente ID: ${idCliente}`);
+    
+    let respuestasData = await storage.readJSON('respuestas.json', {});
+    
+    // Si el archivo existe pero es un array (formato incorrecto), convertir a objeto
+    if (Array.isArray(respuestasData)) {
+      console.warn('⚠️ Respuestas.json tiene formato de array, convirtiendo a objeto');
+      respuestasData = {};
     }
     
-    console.log(`💾 Guardando respuestas para cliente ID: ${idCliente}`);
     respuestasData[idCliente] = respuestas;
     
-    const json = JSON.stringify(respuestasData, null, 2);
-    await FileSystem.writeAsStringAsync(RESPUESTAS_PATH, json, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    await storage.writeJSON('respuestas.json', respuestasData);
     
-    console.log(`✅ Respuestas guardadas correctamente para cliente ${idCliente}`);
+    console.log(`✅ [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Respuestas guardadas correctamente para cliente ${idCliente}`);
   } catch (error) {
     console.error('❌ Error al guardar respuestas:', error);
     throw error;
@@ -80,38 +52,19 @@ export const guardarRespuestas = async (idCliente, respuestas) => {
 };
 
 /**
- * Lee un archivo local con los datos del modelo
+ * Lee un archivo local con los datos del modelo (versión universal)
  */
 export const leerModeloFS = async (modelo) => {
-  const filePath = MODELOS[modelo];
-  console.log(filePath);
-  if (!filePath) {
-    console.warn(`❌ Modelo '${modelo}' no está configurado en MODELOS`);
-    return [];
-  }
-
+  const filename = `${modelo}.json`;
+  console.log(`📖 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Leyendo modelo: ${filename}`);
+  
   try {
-    // Usar la API legacy para leer archivos por compatibilidad
-    const archivoInfo = await FileSystem.getInfoAsync(filePath);
-    if (!archivoInfo.exists) {
-      console.warn(`📄 Archivo ${modelo}.json no encontrado en: ${filePath}`);
-      return [];
-    }
-
-    const contenido = await FileSystem.readAsStringAsync(filePath);
-
-    if (!contenido || contenido.trim() === '') {
-      console.warn(`📄 Archivo ${modelo}.json está vacío`);
-      return [];
-    }
-
-    const datos = JSON.parse(contenido);
+    const datos = await storage.readJSON(filename, []);
     console.log(
       `✅ ${modelo}.json leído correctamente - ${
         Array.isArray(datos) ? datos.length : 'N/A'
       } registros`
     );
-
     return datos;
   } catch (err) {
     console.warn(`❌ Error al leer ${modelo}.json:`, err.message);
@@ -123,7 +76,7 @@ export const leerModeloFS = async (modelo) => {
  * Lee específicamente los clientes locales (garantiza que no use API)
  */
 export const leerClientesLocales = async () => {
-  console.log('📱 Leyendo clientes desde almacenamiento local únicamente...');
+  console.log(`📱 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Leyendo clientes desde almacenamiento local únicamente...`);
   return await leerModeloFS('clientes');
 };
 
@@ -131,18 +84,12 @@ export const leerClientesLocales = async () => {
  * Guarda un nuevo cliente en el almacenamiento local y retorna el idCliente generado
  */
 export const guardarNuevoCliente = async (clienteData) => {
-  const filePath = MODELOS['clientes'];
-
-  if (!filePath) {
-    throw new Error('Modelo clientes no está configurado');
-  }
-
   try {
-    await asegurarDataDir();
-
+    console.log(`💾 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Guardando nuevo cliente...`);
+    
     // Leer clientes existentes
     const clientesExistentes = await leerClientesLocales();
-
+    
     // Generar nuevo idCliente secuencial
     const maxId = clientesExistentes.reduce((max, cliente) => {
       const id = parseInt(cliente.idCliente) || 0;
@@ -160,14 +107,10 @@ export const guardarNuevoCliente = async (clienteData) => {
 
     // Agregar a la lista
     const clientesActualizados = [...clientesExistentes, nuevoCliente];
+    
+    await storage.writeJSON('clientes.json', clientesActualizados);
 
-    const json = JSON.stringify(clientesActualizados, null, 2);
-
-    await FileSystem.writeAsStringAsync(filePath, json, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    console.log(`✅ Cliente guardado con ID: ${nuevoIdCliente}`);
+    console.log(`✅ [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Cliente guardado con ID: ${nuevoIdCliente}`);
     return nuevoIdCliente.toString();
   } catch (error) {
     console.warn(`❌ Error al guardar cliente: ${error.message}`);
@@ -179,49 +122,24 @@ export const guardarNuevoCliente = async (clienteData) => {
  * Elimina las respuestas de un cliente específico por su idCliente
  */
 export const eliminarRespuestasCliente = async (idCliente) => {
-  const filePath = RESPUESTAS_PATH;
-
   try {
-    await asegurarDataDir();
-    const respuestasInfo = await FileSystem.getInfoAsync(filePath);
-    if (!respuestasInfo.exists) {
-      return;
-    }
-
-    const contenido = await FileSystem.readAsStringAsync(filePath);
-    let respuestasData = {};
-    if (contenido && contenido.trim()) {
-      respuestasData = JSON.parse(contenido);
-    }
-
+    let respuestasData = await storage.readJSON('respuestas.json', {});
+    
     if (respuestasData[idCliente]) {
       delete respuestasData[idCliente];
-      await FileSystem.writeAsStringAsync(
-        filePath,
-        JSON.stringify(respuestasData, null, 2),
-        {
-          encoding: FileSystem.EncodingType.UTF8,
-        }
-      );
+      await storage.writeJSON('respuestas.json', respuestasData);
     }
   } catch (error) {
     throw error;
   }
 };
 
+/**
+ * Guarda clientes locales
+ */
 export const guardarClientesLocales = async (clientes) => {
-  const filePath = MODELOS['clientes'];
-
-  if (!filePath) {
-    throw new Error('Modelo clientes no está configurado');
-  }
-
   try {
-    await asegurarDataDir();
-    const json = JSON.stringify(clientes || [], null, 2);
-    await FileSystem.writeAsStringAsync(filePath, json, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
+    await storage.writeJSON('clientes.json', clientes || []);
     return true;
   } catch (error) {
     throw error;
@@ -293,29 +211,6 @@ const postJson = async (url, body, { retries = 1, retryDelayMs = 600 } = {}) => 
   return { ok: false, error: lastErr };
 };
 
-const leerJSON = async (path, fallback = {}) => {
-  try {
-    // Usar legacy API para mantener compatibilidad con paths existentes
-    const info = await FileSystem.getInfoAsync(path);
-    if (!info.exists) return fallback;
-    const content = await FileSystem.readAsStringAsync(path);
-    if (!content) return fallback;
-    return JSON.parse(content);
-  } catch (e) {
-    console.warn(`❌ Error leyendo ${path}: ${e.message}`);
-    return fallback;
-  }
-};
-
-const escribirJSON = async (path, data) => {
-  await asegurarDataDir();
-  const json = JSON.stringify(data, null, 2);
-  // Usar legacy API para mantener compatibilidad con paths existentes
-  await FileSystem.writeAsStringAsync(path, json, {
-    encoding: FileSystem.EncodingType.UTF8,
-  });
-};
-
 const pickClienteData = (cliente) => {
   const { idCliente, fechaCreacion, fechaSincronizacion, ...rest } = cliente || {};
   return rest;
@@ -325,20 +220,33 @@ const getClienteByIdFromRespuestas = (respuestasData, idLocal) => {
   return respuestasData?.[idLocal] || {};
 };
 
+/**
+ * Sincronización de clientes pendientes (versión universal)
+ */
 export const syncClientesPendientesFS = async () => {
+  if (platformInfo.isWeb) {
+    console.log('🌐 Sincronización en web - funcionalidad limitada');
+    Alert.alert('Información', 'Sincronización automática no disponible en web. Los datos se guardan localmente.');
+    return { ok: true, razon: 'web_local_only' };
+  }
+
   const baseActual = await getApiBaseUrlOrDefault();
   const debug = { inicio: new Date().toISOString(), base: baseActual, clientesProcesados: [] };
 
-  const netInfo = await NetInfo.fetch();
-  if (!netInfo.isConnected) {
-    console.log('📵 Sin conexión. Se omite sincronización de clientes -> API');
-    Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API');
-    return { ok: false, razon: 'sin_conexion' };
+  try {
+    const netInfo = await NetInfo.fetch();
+    if (!netInfo.isConnected) {
+      console.log('📵 Sin conexión. Se omite sincronización de clientes -> API');
+      Alert.alert('📵 Sin conexión. Se omite sincronización de clientes -> API');
+      return { ok: false, razon: 'sin_conexion' };
+    }
+  } catch (error) {
+    console.warn('⚠️ Error verificando conexión:', error.message);
+    return { ok: false, razon: 'error_conexion' };
   }
 
-  const clientesPath = MODELOS['clientes'];
-  const clientes = await leerJSON(clientesPath, []);
-  const respuestasData = await leerJSON(RESPUESTAS_PATH, {});
+  const clientes = await storage.readJSON('clientes.json', []);
+  const respuestasData = await storage.readJSON('respuestas.json', {});
 
   const REDES_ID = { facebook: 1, instagram: 2, tiktok: 3, paginaWeb: 4 };
 
@@ -442,7 +350,7 @@ export const syncClientesPendientesFS = async () => {
       const idx = clientes.findIndex((c) => String(c.idCliente) === String(cliente.idCliente));
       if (idx >= 0) {
         clientes[idx] = { ...clientes[idx], fechaSincronizacion: ahora };
-        await escribirJSON(clientesPath, clientes);
+        await storage.writeJSON('clientes.json', clientes);
         // 👇 Avisar a Inicio.js con EventBus
         eventBus.emit('clientesActualizados');
       }
@@ -460,9 +368,12 @@ export const syncClientesPendientesFS = async () => {
   return { ok: true, debug };
 };
 
+/**
+ * Sincronización en el inicio (versión universal)
+ */
 export const syncOnStartup = async (onProgress) => {
   try {
-    console.log('🔄 Sincronizando archivos maestros desde el servidor...');
+    console.log(`🔄 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Sincronizando archivos maestros...`);
     
     // Inicializar modelos si no están configurados
     if (Object.keys(MODELOS).length === 0) {
@@ -471,9 +382,8 @@ export const syncOnStartup = async (onProgress) => {
     }
     
     const datosLeidos = await syncModelosFS(onProgress);
-    console.log('✅ Sincronización de archivos maestros completada');
+    console.log(`✅ [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Sincronización completada`);
     
-    // 👈 Devolver datos ya leídos
     return datosLeidos;
   } catch (e) {
     console.warn('❌ Error en syncOnStartup:', e.message);
@@ -481,89 +391,90 @@ export const syncOnStartup = async (onProgress) => {
   }
 };
 
+/**
+ * Sincronización de modelos (versión universal)
+ */
 export const syncModelosFS = async (onProgress) => {
-  await asegurarDataDir();
-
   const modelosTotales = MODELOS_NOMBRES.filter((m) => m !== 'clientes');
-  const datosLeidos = {}; // 👈 Cache para almacenar datos ya leídos
+  const datosLeidos = {};
   let contador = 0;
 
+  if (platformInfo.isWeb && !DATA_REMOTE_URL) {
+    console.log('🌐 Modo web sin URL remota - usando datos locales únicamente');
+    // En web sin servidor, retornar datos vacíos por defecto
+    for (const modelo of modelosTotales) {
+      const datos = await storage.readJSON(`${modelo}.json`, []);
+      datosLeidos[modelo] = Array.isArray(datos) ? datos : (datos?.rows ?? []);
+      contador++;
+      if (onProgress) onProgress(`${modelo} cargado localmente`, contador, modelosTotales.length);
+    }
+    return datosLeidos;
+  }
+
   for (const modelo of modelosTotales) {
-    const localPath = `${DATA_DIR}${modelo}.json`;
-    const metaPath = `${localPath}.meta.json`;
+    const filename = `${modelo}.json`;
+    const metaFilename = `${modelo}.meta.json`;
     const remoteUrl = `${DATA_REMOTE_URL}${modelo}.json`;
     const remoteMetaUrl = `${DATA_REMOTE_URL}${modelo}.meta.json`;
 
     try {
       let remoteMeta = null;
-      try {
-        const metaResp = await fetch(remoteMetaUrl);
-        if (metaResp.ok) remoteMeta = await metaResp.json();
-      } catch (_) {}
+      if (!platformInfo.isWeb) {
+        try {
+          const metaResp = await fetch(remoteMetaUrl);
+          if (metaResp.ok) remoteMeta = await metaResp.json();
+        } catch (_) {}
+      }
 
-      const localFile = new File(DATA_DIRECTORY, `${modelo}.json`);
-      const metaFile = new File(DATA_DIRECTORY, `${modelo}.meta.json`);
-      const localExists = localFile.exists;
-      const metaExists = metaFile.exists;
+      const localExists = await storage.fileExists(filename);
+      const metaExists = await storage.fileExists(metaFilename);
 
       let necesitaActualizar = false;
       if (!localExists || !metaExists) {
         necesitaActualizar = true;
       } else if (remoteMeta) {
-        const localMetaRaw = metaFile.text() || '';
-        if (!localMetaRaw.trim()) {
+        const localMeta = await storage.readJSON(metaFilename, {});
+        if (
+          localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
+          localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
+        ) {
           necesitaActualizar = true;
-        } else {
-          const localMeta = JSON.parse(localMetaRaw);
-          if (
-            localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
-            localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
-          ) {
-            necesitaActualizar = true;
-          }
         }
       }
 
       contador++;
 
-      if (necesitaActualizar) {
+      if (necesitaActualizar && !platformInfo.isWeb) {
         if (onProgress) onProgress(`Actualizando datos de ${modelo}...`, contador, modelosTotales.length);
         await delay(500);
 
         const dataResp = await fetch(remoteUrl);
         if (!dataResp.ok) continue;
         const data = await dataResp.json();
-        localFile.write(JSON.stringify(data, null, 2));
+        await storage.writeJSON(filename, data);
 
-        if (remoteMeta)
-          metaFile.write(JSON.stringify(remoteMeta, null, 2));
+        if (remoteMeta) {
+          await storage.writeJSON(metaFilename, remoteMeta);
+        }
 
-        // 👈 Guardar datos ya leídos para evitar segunda lectura
         datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);
         console.log(`✅ ${modelo} sincronizado (${Array.isArray(data) ? data.length : 0} registros)`);
       } else {
         if (onProgress) onProgress(`${modelo} ya actualizado`, contador, modelosTotales.length);
         console.log(`✔️ ${modelo} ya está actualizado`);
         
-        // 👈 Leer archivo existente para incluir en cache
-        try {
-          const contenido = await FileSystem.readAsStringAsync(localPath);
-          if (contenido && contenido.trim()) {
-            const data = JSON.parse(contenido);
-            datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);
-          }
-        } catch (err) {
-          console.warn(`⚠️ Error leyendo ${modelo} existente:`, err.message);
-          datosLeidos[modelo] = [];
-        }
+        const data = await storage.readJSON(filename, []);
+        datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);
       }
     } catch (err) {
       console.warn(`❌ Error procesando ${modelo}:`, err.message);
+      // En caso de error, intentar cargar datos locales
+      const data = await storage.readJSON(filename, []);
+      datosLeidos[modelo] = Array.isArray(data) ? data : [];
     }
   }
 
   if (onProgress) onProgress('Iniciando...', null, null);
   
-  // 👈 Devolver datos ya leídos para evitar segunda lectura
   return datosLeidos;
 };

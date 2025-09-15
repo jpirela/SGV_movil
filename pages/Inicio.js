@@ -12,20 +12,13 @@ import {
   Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataFS';
-import { syncClientesPendientesFS } from '../utils/syncDataFS';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { leerClientesLocales, guardarClientesLocales, eliminarRespuestasCliente } from '../utils/syncDataUniversal';
+import { syncClientesPendientesFS } from '../utils/syncDataUniversal';
 import eventBus from '../utils/eventBus'; // ✅ EventBus adaptado
-import * as FileSystem from 'expo-file-system/legacy';
-import { File, Directory, Paths } from 'expo-file-system';
+import { storage, platformInfo } from '../utils/storage';
 import * as Sharing from 'expo-sharing';
 import JSZip from 'jszip';
-
-const DATA_DIR = FileSystem.documentDirectory + 'data/';
-const DATA_DIRECTORY = new Directory(Paths.document, 'data');
-const CLIENTES_PATH = `${DATA_DIR}clientes.json`;
-const RESPUESTAS_PATH = `${DATA_DIR}respuestas.json`;
-const ZIP_PATH = `${DATA_DIR}datos_exportados.zip`;
 
 // Generador de UUID simple
 const generateUUID = () => {
@@ -47,6 +40,7 @@ const Inicio = () => {
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
+  const route = useRoute();
 
   const cargarClientes = useCallback(async () => {
     const data = await leerClientesLocales();
@@ -67,6 +61,24 @@ const Inicio = () => {
     eventBus.on('clientesActualizados', handler);
     return () => eventBus.off('clientesActualizados', handler);
   }, [cargarClientes]);
+
+  // 🆕 Detectar cuando se regresa de AgregarCliente con un cliente guardado
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.handleGuardarCliente) {
+        console.log(`🆕 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Cliente guardado exitosamente, actualizando lista...`);
+        
+        // Recargar la lista de clientes
+        cargarClientes();
+        
+        // Mostrar mensaje de éxito
+        Alert.alert('✅ Datos guardados exitosamente', 'El cliente ha sido registrado correctamente.');
+        
+        // Limpiar el parámetro para evitar que se ejecute múltiples veces
+        navigation.setParams({ handleGuardarCliente: false });
+      }
+    }, [route.params?.handleGuardarCliente, cargarClientes, navigation])
+  );
 
   const filteredClientes = useMemo(() => {
     if (!searchText.trim()) return clientes;
@@ -180,32 +192,54 @@ const Inicio = () => {
           style={styles.actionBtn}
           onPress={async () => {
             try {
-              // Leer archivos actuales
-              const [clientesContent, respuestasContent] = await Promise.all([
-                FileSystem.readAsStringAsync(CLIENTES_PATH),
-                FileSystem.readAsStringAsync(RESPUESTAS_PATH),
-              ]);
+              console.log(`📦 [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Exportando datos...`);
+              
+              // Leer datos usando el sistema universal
+              const clientesData = await storage.readJSON('clientes.json', []);
+              const respuestasData = await storage.readJSON('respuestas.json', {});
+              
+              const clientesContent = JSON.stringify(clientesData, null, 2);
+              const respuestasContent = JSON.stringify(respuestasData, null, 2);
 
-              // Crear zip en memoria
-              const zip = new JSZip();
-              zip.file('Clientes.json', clientesContent);
-              zip.file('Respuestas.json', respuestasContent);
+              if (platformInfo.isWeb) {
+                // En web, descargar archivos directamente
+                const downloadFile = (content, filename) => {
+                  const blob = new Blob([content], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                };
+                
+                downloadFile(clientesContent, 'Clientes.json');
+                downloadFile(respuestasContent, 'Respuestas.json');
+                
+                Alert.alert('Éxito', 'Se han descargado los archivos de datos');
+              } else {
+                // En móvil, crear ZIP y compartir
+                const zip = new JSZip();
+                zip.file('Clientes.json', clientesContent);
+                zip.file('Respuestas.json', respuestasContent);
 
-              // Generar blob base64
-              const zipContent = await zip.generateAsync({ type: 'base64' });
+                const zipContent = await zip.generateAsync({ type: 'base64' });
+                const zipPath = storage.getPath('datos_exportados.zip');
+                
+                // Guardar el zip usando FileSystem para móvil
+                const FileSystem = require('expo-file-system/legacy');
+                await FileSystem.writeAsStringAsync(zipPath, zipContent, {
+                  encoding: FileSystem.EncodingType.Base64,
+                });
 
-              // Guardar el zip en el sandbox
-              await FileSystem.writeAsStringAsync(ZIP_PATH, zipContent, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-
-              // Compartir el zip
-              await Sharing.shareAsync(ZIP_PATH);
-
-              Alert.alert('Éxito', 'Se generó el archivo ZIP con los datos');
+                await Sharing.shareAsync(zipPath);
+                Alert.alert('Éxito', 'Se generó el archivo ZIP con los datos');
+              }
             } catch (error) {
-              Alert.alert('Error', 'No se pudo exportar el ZIP');
-              console.warn('Error al generar ZIP:', error);
+              console.error('Error al exportar:', error);
+              Alert.alert('Error', `No se pudo exportar los datos: ${error.message}`);
             }
           }}
         >
