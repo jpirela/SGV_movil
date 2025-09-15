@@ -50,8 +50,8 @@ export default function CheckBox({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
-    padding: 8,
+    marginBottom: 8,
+    padding: 4,
     borderWidth: 1,
     borderColor: 'transparent',
     borderRadius: 8,
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   labelLeft: {
-    marginRight: 12,
+    marginRight: 8,
   },
   switchTop: {
     alignSelf: 'flex-start',
