@@ -469,7 +469,22 @@ const Cliente = forwardRef((props, ref) => {
             ]}
             enabled={true}
           />
-          <InputText id="tipoComercio" value={object.tipoComercio} placeholder="Tipo de comercio" onChange={updateFormValue} />
+          <SelectBox
+            id="tipoComercio"
+            value={object.tipoComercio}
+            labelTitle="Tipo de comercio"
+            onChange={updateFormValue}
+            options={[
+              { id: 'quiosco', realId: 'Quiosco', nombre: 'Quiosco' },
+              { id: 'panaderia', realId: 'Panaderia', nombre: 'Panaderia' },
+              { id: 'bodega', realId: 'Bodega', nombre: 'Bodega' },
+              { id: 'abasto', realId: 'Abasto', nombre: 'Abasto' },
+              { id: 'supermercado', realId: 'Super mercado', nombre: 'Super mercado' },
+              { id: 'licoreria', realId: 'Licorería', nombre: 'Licorería' },
+              { id: 'bodegon', realId: 'Bodegon', nombre: 'Bodegon' },
+            ]}
+            enabled={true}
+          />
           
           {/* Selector de Redes Sociales con botón agregar */}
           <View style={styles.socialMediaContainer}>
