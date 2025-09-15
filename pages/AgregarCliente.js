@@ -114,7 +114,7 @@ export default function AgregarCliente() {
         const formaPago = Object.entries(huevosData.formaPago || {})
           .map(([key, value]) => {
             const id = parseInt(key.replace('forma_', ''), 10);
-            const respuesta = value === '1' ? 1 : 2;
+            const respuesta = value === true ? 1 : 2;
             return { idFormaPago: id, respuesta };
           });
 

@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import InputText from '../components/Input/InputText';
 import SelectBox from '../components/Input/SelectBox';
+import CheckBox from '../components/Input/CheckBox';
 import Divider from '../components/Input/Divider';
 
 import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
@@ -165,13 +166,9 @@ const FichaHuevos = forwardRef((props, ref) => {
         .sort((a, b) => a.idFormaPago - b.idFormaPago)
         .map(i => ({
           id_pregunta: `forma_${i.idFormaPago}`,
-          tipo: 'select',
+          tipo: 'checkbox',
           descripcion: i.descripcion || 'Sin descripción',
           labelPosition: 'left',
-          options: [
-            { id: 1, nombre: 'Si' },
-            { id: 2, nombre: 'No' },
-          ],
         }));
 
       const condPagoTransformada = [{
@@ -196,7 +193,7 @@ const FichaHuevos = forwardRef((props, ref) => {
 
       setCategorias(catTransformadas.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
       setPreguntas(pregTransformadas.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
-      setFormaPago(formaPagoTransformada.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
+      setFormaPago(formaPagoTransformada.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: false }), {}));
       setCondicionPago(condPagoTransformada.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
 
       setLoading(false);
@@ -296,31 +293,47 @@ const FichaHuevos = forwardRef((props, ref) => {
       }
     }
 
-    return type === 'select' ? (
-      <SelectBox
-        key={id}
-        id={id}
-        value={formData[id]}
-        labelTitle={labelTitle}
-        onChange={handleChange}
-        options={resolvedOptions}
-        labelPosition={labelPosition}
-        hasError={camposConError[id]}
-      />
-    ) : (
-      <InputText
-        key={id}
-        id={id}
-        value={formData[id]}
-        labelTitle={labelTitle}
-        placeholder=""
-        ref={ref => setFieldRef(id, ref)}
-        onChange={handleChange}
-        type={type}
-        labelPosition={labelPosition}
-        hasError={camposConError[id]}
-      />
-    );
+    if (type === 'select') {
+      return (
+        <SelectBox
+          key={id}
+          id={id}
+          value={formData[id]}
+          labelTitle={labelTitle}
+          onChange={handleChange}
+          options={resolvedOptions}
+          labelPosition={labelPosition}
+          hasError={camposConError[id]}
+        />
+      );
+    } else if (type === 'checkbox') {
+      return (
+        <CheckBox
+          key={id}
+          id={id}
+          value={formData[id]}
+          labelTitle={labelTitle}
+          onChange={handleChange}
+          labelPosition={labelPosition}
+          hasError={camposConError[id]}
+        />
+      );
+    } else {
+      return (
+        <InputText
+          key={id}
+          id={id}
+          value={formData[id]}
+          labelTitle={labelTitle}
+          placeholder=""
+          ref={ref => setFieldRef(id, ref)}
+          onChange={handleChange}
+          type={type}
+          labelPosition={labelPosition}
+          hasError={camposConError[id]}
+        />
+      );
+    }
   };
 
   if (loading) {
