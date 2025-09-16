@@ -69,16 +69,16 @@ export default function Login() {
       }
 
       // Inicializar modelos antes de sincronizar
-      initModelos(['clientes', 'categorias',  'preguntas', 'formas-pago', 'condiciones-pago', 'estados', 'municipios', 'parroquias', 'ciudades']); // 👈 ajusta según tu API
-
-
-      navigation.reset({ index: 0, routes: [{ name: rol === 'admin' ? 'Admin' : 'Inicio' }] });
+      //initModelos(['clientes', 'categorias',  'preguntas', 'formas-pago', 'condiciones-pago', 'estados', 'municipios', 'parroquias', 'ciudades']); // 👈 ajusta según tu API
 
     } catch (e) {
-      Alert.alert('Error', e.message || 'Ocurrió un error durante la autenticación/sincronización');
+      if (isExpo) {
+        Alert.alert('Error', e.message || 'Ocurrió un error durante la autenticación/sincronización');
+      } 
     } finally {
       setLoading(false);
     }
+    navigation.reset({ index: 0, routes: [{ name: rol === 'admin' ? 'Admin' : 'Inicio' }] });
   };
 
   return (
