@@ -149,12 +149,19 @@ export default function AgregarCliente() {
       console.log('✅ Respuestas guardadas correctamente');
       console.log('🔚 === FIN DEBUG: PROCESO DE GUARDADO ===\n');
 
-      // Navegar solo a Inicio, sin goBack() duplicado
-      navigation.navigate('Inicio', { handleGuardarCliente: true });
+      // 🔄 Sincronizar clientes pendientes antes del alert
+      const resultadoSync = await syncClientesPendientesFS();
+      if (!resultadoSync.ok) {
+        Alert.alert('🔄 Sincronización parcial o fallida:', resultadoSync.razon);
+      } else {         // Mostrar mensaje de éxito
+        Alert.alert('✅ Datos guardados', 'El cliente ha sido registrado correctamente.');
+      }
     } catch (error) {
       console.error('Error al guardar:', error);
       Alert.alert("Error al guardar los datos");
     }
+    // Navegar solo a Inicio, sin goBack() duplicado
+      navigation.navigate('Inicio');
   };
 
   const renderTabBar = (props) => (

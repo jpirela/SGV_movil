@@ -71,9 +71,6 @@ const Inicio = () => {
         // Recargar la lista de clientes
         cargarClientes();
         
-        // Mostrar mensaje de éxito
-        Alert.alert('✅ Datos guardados exitosamente', 'El cliente ha sido registrado correctamente.');
-        
         // Limpiar el parámetro para evitar que se ejecute múltiples veces
         navigation.setParams({ handleGuardarCliente: false });
       }
@@ -156,7 +153,7 @@ const Inicio = () => {
 
       setLoading(false);
       // Alert de éxito
-      Alert.alert('✅ Datos guardados exitosamente', 'El cliente ha sido registrado y sincronizado correctamente.');
+      Alert.alert('✅ Datos sincronizados', 'El cliente ha sido registrado y sincronizado correctamente.');
     } catch (error) {
       setLoading(false);
       console.warn('Error al guardar cliente:', error);
