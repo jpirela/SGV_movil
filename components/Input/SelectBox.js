@@ -112,12 +112,19 @@ const SelectBox = forwardRef(({
               renderItem={({ item, index }) => {
                 const itemValue = (item.realId || item.id || item.id_estado || item.value || index).toString();
                 const itemLabel = item.texto || item.nombre || item.label || `Item ${index + 1}`;
+                const isDisabled = !!item.disabled;
+                const indentLevel = Number(item.indent || 0);
                 return (
                   <TouchableOpacity
-                    style={styles.optionItem}
+                    style={[
+                      styles.optionItem,
+                      isDisabled && styles.optionItemDisabled,
+                      indentLevel > 0 && { paddingLeft: 10 + indentLevel * 16 },
+                    ]}
+                    disabled={isDisabled}
                     onPress={() => handleSelect(itemValue, itemLabel)}
                   >
-                    <Text>{itemLabel}</Text>
+                    <Text style={isDisabled ? styles.optionTextDisabled : styles.optionText}>{itemLabel}</Text>
                   </TouchableOpacity>
                 );
               }}
@@ -218,6 +225,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  optionItemDisabled: {
+    backgroundColor: '#f7f7f7',
+  },
+  optionText: {
+    color: '#000',
+  },
+  optionTextDisabled: {
+    color: '#777',
+    fontWeight: 'bold',
   },
   closeButton: {
     marginTop: 10,

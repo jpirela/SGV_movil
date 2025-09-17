@@ -15,6 +15,7 @@ import InputText from '../components/Input/InputText';
 import TextArea from '../components/Input/TextArea';
 import SelectBox from '../components/Input/SelectBox';
 import RifInput from '../components/Input/RifInput';
+import SelectDirecciones from '../components/Input/SelectDirecciones';
 
 import { onDataReady, getMasterData, isDataLoaded } from '../utils/dataCache';
 
@@ -418,11 +419,17 @@ const Cliente = forwardRef((props, ref) => {
             type="phone"
             onChange={updateFormValue}
           />
+          <SelectDirecciones
+            id="direccion"
+            labelTitle=""
+            onChange={updateFormValue}
+          />
           <TextArea
             ref={el => fieldRefs.current['direccion'] = el}
             id="direccion"
+            labelTitle="Dirección"
             value={object.direccion}
-            placeholder="Dirección"
+            placeholder="Dirección (auto-generada)"
             onChange={(id, value) => {
               updateFormValue(id, value);
               if(fieldRefs.current[id]?.focus) fieldRefs.current[id].focus();
