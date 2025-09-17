@@ -24,6 +24,7 @@ const FichaHuevos = forwardRef((props, ref) => {
   const [condicionPagoTransformada, setCondicionPagoTransformada] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cantidadProveedores, setCantidadProveedores] = useState('1');
+  const [hiddenCajasPreguntaId, setHiddenCajasPreguntaId] = useState(null);
 
   const [categorias, setCategorias] = useState({});
   const [preguntas, setPreguntas] = useState({});
@@ -191,6 +192,13 @@ const FichaHuevos = forwardRef((props, ref) => {
       setFormaPagoTransformada(formaPagoTransformada);
       setCondicionPagoTransformada(condPagoTransformada);
 
+      // Identificar la pregunta "¿Cuántas cajas compra por semana?" para ocultarla y calcularla
+      try {
+        const regexCajas = /¿?Cu[aá]ntas?\s+cajas\s+compra\s+(a\s+la\s+semana|por\s+semana)\?/i;
+        const preguntaCajas = pregTransformadas.find(p => regexCajas.test(p.descripcion || ''));
+        setHiddenCajasPreguntaId(preguntaCajas ? preguntaCajas.id_pregunta : null);
+      } catch (_) {}
+
       setCategorias(catTransformadas.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
       setPreguntas(pregTransformadas.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: '' }), {}));
       setFormaPago(formaPagoTransformada.reduce((acc, i) => ({ ...acc, [i.id_pregunta]: false }), {}));
@@ -279,6 +287,14 @@ const FichaHuevos = forwardRef((props, ref) => {
       }
     };
 
+    // Ocultar la pregunta específica de cajas por semana (se calcula desde categorías)
+    try {
+      const regexCajas = /¿?Cu[aá]ntas?\s+cajas\s+compra\s+(a\s+la\s+semana|por\s+semana)\?/i;
+      if (regexCajas.test(labelTitle || '')) {
+        return null;
+      }
+    } catch(_) {}
+
     const resolvedOptions = Array.isArray(options) ? options : [];
 
     // Mostrar preguntas de flete solo cuando el transporte es "Me los traen" (valor === '1')
@@ -335,6 +351,19 @@ const FichaHuevos = forwardRef((props, ref) => {
       );
     }
   };
+
+  // Calcular y sincronizar la suma de categorías hacia la pregunta oculta de cajas por semana
+  useEffect(() => {
+    if (!hiddenCajasPreguntaId) return;
+    try {
+      const sum = (Array.isArray(categoriasTransformadas) ? categoriasTransformadas : []).reduce((acc, item) => {
+        const raw = categorias[item.id_pregunta];
+        const n = Number(String(raw || '').replace(/[^0-9.-]/g, ''));
+        return acc + (isNaN(n) ? 0 : n);
+      }, 0);
+      setPreguntas(prev => ({ ...prev, [hiddenCajasPreguntaId]: String(sum) }));
+    } catch (_) {}
+  }, [categorias, hiddenCajasPreguntaId, categoriasTransformadas]);
 
   if (loading) {
     return (

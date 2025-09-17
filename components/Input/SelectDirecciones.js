@@ -97,8 +97,10 @@ const AddressValueRow = ({ index, label, value, onChange, onRemove, inputRef }) 
           id={`valor-${index}`}
           labelTitle={label}
           value={value}
+          labelPosition="left"
           placeholder={label}
           onChange={(id, v) => onChange(index, v)}
+          style={{ marginRight: 10 }}
         />
       </View>
       <TouchableOpacity style={styles.deleteButton} onPress={() => onRemove(index)}>
@@ -192,19 +194,19 @@ const SelectDirecciones = ({
       <Text style={styles.mainLabel}>{labelTitle}</Text>
 
       {/* Fila selector + botón agregar, estilo similar a redes sociales */}
-      <View style={styles.socialMediaContainer}>
+      <View style={styles.selectInputContainer}>
         <View style={styles.selectBoxContainer}>
           <SelectBox
             id="direccionSelector"
             value={selectedTipo}
-            labelTitle="Agregar parte de dirección"
+            labelTitle=""
             onChange={(id, value) => setSelectedTipo(value)}
             options={options}
             enabled={true}
           />
         </View>
         <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-          <MaterialCommunityIcons name="plus" size={24} color="#007bff" />
+          <MaterialCommunityIcons name="plus" size={20} color="#007bff" />
         </TouchableOpacity>
       </View>
 
@@ -228,7 +230,7 @@ export default SelectDirecciones;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   mainLabel: {
     fontWeight: 'bold',
@@ -236,10 +238,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontSize: 16,
   },
-  socialMediaContainer: {
+  selectInputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 15,
+    alignItems: 'flex-start',
+    marginBottom: 0
   },
   selectBoxContainer: {
     flex: 1,
@@ -256,11 +258,12 @@ const styles = StyleSheet.create({
     height: 48,
     borderWidth: 1,
     borderColor: '#007bff',
+    marginBottom: 15,
   },
   inputWithDeleteContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 0
   },
   inputContainer: {
     flex: 1,
@@ -273,9 +276,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 48,
-    height: 48,
+    minWidth: 40,
+    height: 40,
     borderWidth: 1,
     borderColor: '#dc3545',
+    marginBottom: 10,
   },
 });

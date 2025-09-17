@@ -421,7 +421,7 @@ const Cliente = forwardRef((props, ref) => {
           />
           <SelectDirecciones
             id="direccion"
-            labelTitle=""
+            labelTitle="Agregar la dirección"
             onChange={updateFormValue}
           />
           <TextArea
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
   inputWithButtonContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 15,
+    marginBottom: 0
   },
   inputContainer: {
     flex: 1,

@@ -1,14 +1,13 @@
 // utils/syncDataFS.js
 import * as FileSystem from 'expo-file-system/legacy';
-import { File, Directory, Paths } from 'expo-file-system';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { getApiBaseUrlOrDefault } from './config';
 import eventBus from './eventBus'; // 👈 agregado para emitir eventos
 import Constants from 'expo-constants';
 
-const DATA_DIR = FileSystem.documentDirectory + 'data/';
-const DATA_DIRECTORY = new Directory(Paths.document, 'data');
+const DATA_DIR_BASE = FileSystem.documentDirectory || FileSystem.cacheDirectory || '';
+const DATA_DIR = (DATA_DIR_BASE || '') + 'data/';
 const REMOTE_BASE = "";
 
 // 👇 aquí se resuelve el error
@@ -34,8 +33,15 @@ export const initModelos = (modelos) => {
  * Asegura que el directorio de datos exista
  */
 const asegurarDataDir = async () => {
-  if (!DATA_DIRECTORY.exists) {
-    DATA_DIRECTORY.create();
+  // En web, expo-file-system usa IndexedDB y no requiere crear directorios explícitos
+  if (Platform.OS === 'web') return;
+  try {
+    const info = await FileSystem.getInfoAsync(DATA_DIR);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(DATA_DIR, { intermediates: true });
+    }
+  } catch (e) {
+    console.warn('No se pudo asegurar el directorio de datos:', e?.message || e);
   }
 };
 
@@ -501,26 +507,31 @@ export const syncModelosFS = async (onProgress) => {
         if (metaResp.ok) remoteMeta = await metaResp.json();
       } catch (_) {}
 
-      const localFile = new File(DATA_DIRECTORY, `${modelo}.json`);
-      const metaFile = new File(DATA_DIRECTORY, `${modelo}.meta.json`);
-      const localExists = localFile.exists;
-      const metaExists = metaFile.exists;
+      // Verificar existencia local mediante FileSystem
+      const localInfo = await FileSystem.getInfoAsync(localPath);
+      const metaInfo = await FileSystem.getInfoAsync(metaPath);
+      const localExists = !!localInfo.exists;
+      const metaExists = !!metaInfo.exists;
 
       let necesitaActualizar = false;
       if (!localExists || !metaExists) {
         necesitaActualizar = true;
       } else if (remoteMeta) {
-        const localMetaRaw = metaFile.text() || '';
-        if (!localMetaRaw.trim()) {
-          necesitaActualizar = true;
-        } else {
-          const localMeta = JSON.parse(localMetaRaw);
-          if (
-            localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
-            localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
-          ) {
+        try {
+          const localMetaRaw = await FileSystem.readAsStringAsync(metaPath);
+          if (!localMetaRaw || !localMetaRaw.trim()) {
             necesitaActualizar = true;
+          } else {
+            const localMeta = JSON.parse(localMetaRaw);
+            if (
+              localMeta.fecha_creacion !== remoteMeta.fecha_creacion ||
+              localMeta.fecha_modificacion !== remoteMeta.fecha_modificacion
+            ) {
+              necesitaActualizar = true;
+            }
           }
+        } catch (e) {
+          necesitaActualizar = true;
         }
       }
 
@@ -533,10 +544,15 @@ export const syncModelosFS = async (onProgress) => {
         const dataResp = await fetch(remoteUrl);
         if (!dataResp.ok) continue;
         const data = await dataResp.json();
-        localFile.write(JSON.stringify(data, null, 2));
+        await FileSystem.writeAsStringAsync(localPath, JSON.stringify(data, null, 2), {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
 
-        if (remoteMeta)
-          metaFile.write(JSON.stringify(remoteMeta, null, 2));
+        if (remoteMeta) {
+          await FileSystem.writeAsStringAsync(metaPath, JSON.stringify(remoteMeta, null, 2), {
+            encoding: FileSystem.EncodingType.UTF8,
+          });
+        }
 
         // 👈 Guardar datos ya leídos para evitar segunda lectura
         datosLeidos[modelo] = Array.isArray(data) ? data : (data?.rows ?? []);

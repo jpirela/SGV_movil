@@ -60,7 +60,7 @@ export default InputText;
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 15,
     alignItems: 'flex-start',
   },
   topAlign: {
