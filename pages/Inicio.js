@@ -110,6 +110,7 @@ const Inicio = () => {
           text: 'Sí',
           onPress: async () => {
             try {
+              // Implementar la logica para eliminar el cliente en la API si se produjo la eliminacion en la API entonces proseguir con los siguientes pasos para eliminar los datos en los JSON
               await eliminarRespuestasCliente(idCliente);
               const nuevosClientes = clientes.filter(cliente => cliente.idCliente !== idCliente);
               setClientes(nuevosClientes);

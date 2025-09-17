@@ -13,16 +13,8 @@
       "node": "20.19.4",
       "developmentClient": false,
       "distribution": "internal",
-      "env": {
-        "NODE_ENV": "production",
-        "MYAPP_UPLOAD_STORE_FILE": "my-release-key.keystore",
-        "MYAPP_UPLOAD_STORE_PASSWORD": "113322",
-        "MYAPP_UPLOAD_KEY_ALIAS": "my-key-alias",
-        "MYAPP_UPLOAD_KEY_PASSWORD": "113322"
-      },
       "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "buildType": "apk"
       }
     },
     "production": {

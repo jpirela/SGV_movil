@@ -11,6 +11,7 @@ import AgregarCliente from './pages/AgregarCliente';
 import MostrarDatos from './pages/MostrarDatos';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
+import EditarDatos from './pages/EditarDatos';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +34,7 @@ export default function App() {
         <Stack.Screen name="Admin" component={Admin} />
         <Stack.Screen name="AgregarCliente" component={AgregarCliente} />
         <Stack.Screen name="MostrarDatos" component={MostrarDatos} />
+        <Stack.Screen name="EditarDatos" component={EditarDatos} />
       </Stack.Navigator>
     </NavigationContainer>
   );
