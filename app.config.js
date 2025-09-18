@@ -1,10 +1,10 @@
-// app.config.js
 export default {
   expo: {
+    owner: 'jorgepirelarivas',
     name: 'Agropecuaria Los Apamates',
-    slug: 'snack-6ed096ec-79f6-4300-898d-185768ccbf9e',
+    slug: 'sgv-movil',
     description: "Aplicación para la recolección de datos",
-    version: '1.0.0',
+    version: '1.0.0', // versión visible para el usuario
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
@@ -17,6 +17,7 @@ export default {
 
     android: {
       package: "com.infosoft.sgvventas",
+      versionCode: 1, // incrementa en cada build que subas a Play
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff'
@@ -26,12 +27,11 @@ export default {
         'ACCESS_COARSE_LOCATION'
       ],
       edgeToEdgeEnabled: true,
-
-      // ✅ Permitir tráfico HTTP sin HTTPS
       usesCleartextTraffic: true
     },
 
     ios: {
+      buildNumber: "1", // incrementa en cada build para TestFlight/App Store
       supportsTablet: true,
       infoPlist: {
         NSLocationWhenInUseUsageDescription:
@@ -51,7 +51,7 @@ export default {
 
     extra: {
       eas: {
-        projectId: "6ee94bc9-8491-427d-a049-59410a1b5452"
+        projectId: "8f0ae1eb-2882-44bd-9e06-db414e98d1aa"
       },
       URL_BASE: 'https://restcontroller-sa1o.onrender.com/api',
       DATA_REMOTE_URL: "https://sgvcpa-admin.web.app/data/",
