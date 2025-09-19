@@ -17,7 +17,6 @@ export default {
 
     android: {
       package: "com.infosoft.sgvventas",
-      versionCode: 1, // incrementa en cada build que subas a Play
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#ffffff'
@@ -46,7 +45,8 @@ export default {
     },
 
     plugins: [
-      "expo-font"
+      "expo-font",
+      "expo-system-ui"
     ],
 
     extra: {
