@@ -38,16 +38,13 @@ export default function Admin() {
   const eliminarTodosLosArchivos = async () => {
     try {
       setWorking(true);
-      console.log(`🗑️ [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Eliminando todos los archivos...`);
+      console.log(`🗑️ [${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Eliminando todos los archivos de datos (.json) en data...`);
       
-      // Eliminar contenido de Clientes.json
-      await storage.writeJSON('clientes.json', []);
+      // Eliminar todos los archivos .json en la carpeta de datos
+      await storage.deleteAllJsonInData();
       
-      // Eliminar contenido de Respuestas.json (como objeto, no array)
-      await storage.writeJSON('respuestas.json', {});
-      
-      console.log('Eliminados todos los archivos');
-      Alert.alert('Éxito', `[${platformInfo.isWeb ? 'WEB' : 'MOBILE'}] Se han eliminado todos los datos de clientes y respuestas`);
+      console.log('Eliminados todos los archivos de datos');
+      Alert.alert('Éxito', 'Se han eliminado todos los archivos de datos');
     } catch (e) {
       console.error('Error al eliminar archivos:', e);
       Alert.alert('Error', 'No se pudieron eliminar todos los archivos');

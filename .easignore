@@ -1,0 +1,33 @@
+# VCS / OS
+.git/
+.gitignore
+.DS_Store
+Thumbs.db
+
+# Expo / Metro caches
+.expo/
+.expo-shared/
+.metro-health-check*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Android local outputs/caches (not needed in EAS cloud)
+android/.gradle/
+android/build/
+android/app/build/
+
+# iOS (if not used)
+ios/DerivedData/
+ios/build/
+
+# IDE
+.idea/
+.vscode/
+
+# Misc
+coverage/
+docs/

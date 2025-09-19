@@ -158,6 +158,65 @@ class UniversalStorage {
       console.warn(`⚠️ Error eliminando ${filename}:`, error.message);
     }
   }
+
+  // Lista los archivos dentro del directorio de datos
+  async listDataFiles() {
+    try {
+      await this.ensureDataDir();
+      if (this.isWeb) {
+        // En web no hay directorios reales; usamos el prefijo app_data_
+        const prefix = WebStorage.getDataDir().replace(/[\/\\]/g, '_'); // 'app_data/' => 'app_data_'
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) keys.push(k);
+        }
+        return keys; // claves de localStorage (no nombres de archivo reales)
+      }
+      if (FileSystem) {
+        const files = await FileSystem.readDirectoryAsync(this.dataDir);
+        return Array.isArray(files) ? files : [];
+      }
+      return [];
+    } catch (error) {
+      console.warn('⚠️ Error listando dataDir:', error.message);
+      return [];
+    }
+  }
+
+  // Elimina todos los archivos .json dentro del directorio de datos
+  async deleteAllJsonInData() {
+    try {
+      await this.ensureDataDir();
+      if (this.isWeb) {
+        // En web, borramos todas las claves de app_data_ (no podemos distinguir extensión al perder el punto)
+        const prefix = WebStorage.getDataDir().replace(/[\/\\]/g, '_');
+        const toDelete = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) toDelete.push(k);
+        }
+        for (const k of toDelete) localStorage.removeItem(k);
+        return;
+      }
+
+      if (FileSystem) {
+        const files = await FileSystem.readDirectoryAsync(this.dataDir);
+        for (const name of files) {
+          if (typeof name === 'string' && name.toLowerCase().endsWith('.json')) {
+            const fullPath = `${this.dataDir}${name}`;
+            try {
+              await FileSystem.deleteAsync(fullPath);
+            } catch (e) {
+              console.warn(`⚠️ Error eliminando ${name}:`, e.message);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error eliminando JSON en data:', error.message);
+    }
+  }
 }
 
 // Instancia global
