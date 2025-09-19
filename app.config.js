@@ -46,7 +46,8 @@ export default {
 
     plugins: [
       "expo-font",
-      "expo-system-ui"
+      "expo-system-ui",
+      ["./plugins/removeExpoWrappers"]
     ],
 
     extra: {
