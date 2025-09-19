@@ -45,8 +45,7 @@ export default {
     },
 
     plugins: [
-      "expo-font",
-      "expo-system-ui"
+      "expo-font"
     ],
 
     extra: {
