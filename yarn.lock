@@ -2725,6 +2725,13 @@ expo-modules-core@3.0.16:
   dependencies:
     invariant "^2.2.4"
 
+expo-modules-core@~3.0.17:
+  version "3.0.17"
+  resolved "https://registry.yarnpkg.com/expo-modules-core/-/expo-modules-core-3.0.17.tgz#3d7648eb256f34f9992afa251ad8d46c3ca49126"
+  integrity sha512-P1jZn8yjWi4jSCH+r9A1NykLR+0JtFYprJgYwnZ1EVFRtw+DoMjir0OexM9ehCuBg8sKDCbzCUAgm/JFnpjQww==
+  dependencies:
+    invariant "^2.2.4"
+
 expo-sharing@~14.0.7:
   version "14.0.7"
   resolved "https://registry.yarnpkg.com/expo-sharing/-/expo-sharing-14.0.7.tgz#64845ea569c725a9a32705be7ef772e556134e1c"
