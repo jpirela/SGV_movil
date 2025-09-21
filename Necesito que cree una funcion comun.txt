@@ -1,0 +1,173 @@
+Necesito que cree una funcion comun para eliminar los datos de las tablas relacionadas a clientes y que aplicaremos en eliminar cliente y editar datos:
+
+Para eliminar un usuario en la API, al oprimir el icono de eliminar se dirige el flujo de la ejecucion hacia handleEliminar recibiendo como argumento a idCliente cuyo valor tomaremos para filtrar las peticiones. Para eliminar un cliente primero se deben eliminar los datos de las tablas relacionadas, iremos en el siguiente orden:
+ 
+1. Borrar Respuesta-Cliente
+
+Primero aplicar el endpoint para leer todas las respuestas registradas por los clientes
+GET {baseActual}/respuestas
+
+El resultado seria asi:
+
+[
+    {
+        "idRespuesta": 96,
+        "cliente": {
+            "idCliente": 99,
+             ...
+        }
+        ...
+     }, 
+     {
+        "idRespuesta": 97,
+        "cliente": {
+            "idCliente": 99,
+             ...
+        }
+        ...
+     }, 
+     {
+        "idRespuesta": 97,
+        "cliente": {
+            "idCliente": 100,
+             ...
+        }
+        ...
+     }, 
+     ...
+]
+
+Luego tomar el resultado obtenido y filtrar todos los items donde cliente->idCliente sea igual al valor pasado como argumento de handleEliminar y elaborar la respectiva lista de idItemsRespuesta que guarde las idRespuesta filtradas
+
+Seguidamente tomar la lista de idItemsRespuesta hacer un ciclo repetitivo para aplicar a cada item de dicha lista el endpoint para eliminarlo:
+
+DELETE {baseActual}/respuestas/{idRespuesta}
+
+2. Borrar Cliente-CondicionPago
+
+Primero aplicar el endpoint para leer todas las condiciones de pago registradas por los clientes
+GET {baseActual}/clientes-condicion-pago
+
+El resultado seria asi:
+
+[
+    {
+        "idClienteCondicionPago": 13,
+        "diaContado": 0,
+        "diaCredito": 5
+    },
+    {
+        "idClienteCondicionPago": 14,
+        "diaContado": 0,
+        "diaCredito": 0
+    },
+    {
+        "idClienteCondicionPago": 15,
+        "diaContado": 0,
+        "diaCredito": 0
+    },
+    ...
+]
+
+Luego tomar el resultado obtenido y filtrar todos los items donde idClienteCondicionPago sea igual al valor pasado como argumento de handleEliminar y elaborar la respectiva lista de idItemsCondicionPago que guarde las idClienteCondicionPago filtradas
+
+Seguidamente tomar la lista de idItemsCondicionPago hacer un ciclo repetitivo para aplicar a cada item de dicha lista el endpoint para eliminarlo:
+
+DELETE {baseActual}/clientes-condicion-pago/{idClienteCondicionPago}
+
+3. Borrar Cliente-FormaPago
+
+Primero aplicar el endpoint para leer todas las formas de pagos registradas por los clientes
+GET {baseActual}/clientes-condicion-pago
+
+El resultado seria asi:
+
+[
+    {
+        "id": 49,
+        "idClienteFormaPago": 14
+    },
+    {
+        "id": 50
+        "idClienteFormaPago": 14
+    },
+    {
+        "id": 51
+        "idClienteFormaPago": 14
+    },
+    {
+    ...
+]
+
+Luego tomar el resultado obtenido y filtrar todos los items donde idClienteFormaPago sea igual al valor pasado como argumento de handleEliminar y elaborar la respectiva lista de idItemsFormaPago que guarde las idClienteFormaPago filtradas
+
+Seguidamente tomar la lista de idItemsFormaPago hacer un ciclo repetitivo para aplicar a cada item de dicha lista el endpoint para eliminarlo:
+
+DELETE {baseActual}/clientes-formas-pago/{idClienteFormaPago}
+
+
+4. Borrar Cliente-Categoria
+
+Primero aplicar el endpoint para leer todas las categorias registradas por los clientes
+GET {baseActual}/clientes-categorias
+
+El resultado seria asi:
+
+[
+    {
+        "id": 23,
+        "cantidad": "10",
+        "idClienteCategoria": 14
+    },
+    {
+        "id": 24,
+        "cantidad": "10",
+        "idClienteCategoria": 14
+
+    },
+    {
+        "id": 25,
+        "cantidad": "10",
+        "idClienteCategoria": 14
+    },
+    ...
+]
+
+Luego tomar el resultado obtenido y filtrar todos los items donde idClienteCategoria sea igual al valor pasado como argumento de handleEliminar y elaborar la respectiva lista de idItemsCategoria que guarde las idClienteCategoria filtradas
+
+Seguidamente tomar la lista de idItemsCategoria hacer un ciclo repetitivo para aplicar a cada item de dicha lista el endpoint para eliminarlo:
+
+DELETE {baseActual}/clientes-categorias//{idClienteCategoria}
+
+5. Borrar Cliente-RedesSociales
+
+Primero aplicar el endpoint para leer todas las redes sociales registradas por los clientes
+GET {baseActual}/clientes-redes-sociales
+
+El resultado seria asi:
+
+[
+    {
+        "id": 4,
+        "usuario": "@fulanos",
+        "idClienteRedSocial": 14
+    },
+    {
+        "id": 5,
+        "usuario": "@zutanos",
+        "idClienteRedSocial": 14
+    },
+    ...
+]
+
+Luego tomar el resultado obtenido y filtrar todos los items donde idClienteRedSocial sea igual al valor pasado como argumento de handleEliminar y elaborar la respectiva lista de idItemsRedSocial que guarde las idClienteRedSocial filtradas
+
+Seguidamente tomar la lista de idItemsRedSocial hacer un ciclo repetitivo para aplicar a cada item de dicha lista el endpoint para eliminarlo:
+
+DELETE {baseActual}/clientes-categorias//{idClienteRedSocial}
+
+Finalmente para eliminar un cliente luego de aplicados los endpoints para borras los datos de las tablas relacionadas, se toma el argumento pasado a handleEliminar se aplica al endpoint para eliminar el cliente en el comentario "Implementar la logica para eliminar el cliente en la API si se produjo la eliminacion en la API entonces proseguir con los siguientes pasos para eliminar los datos en los JSON":
+
+DELETE http://localhost:8080/api/clientes/{idCliente}
+
+En caso de que se tenga exito al eliminar el cliente en la API entonces proseguir con la eliminacion en los archivos json, de lo contrario emitir un mensaje de error indicando el error que paso en la API y salir de handleEliminar
